@@ -16,7 +16,7 @@ This project provides a fully extensible ORM-like system designed for use with b
 ## Installation
 
 ```bash
-npm install --save <your-package-name>
+npm install --save @thiago/linquery
 ```
 
 ---
