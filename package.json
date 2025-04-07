@@ -1,6 +1,6 @@
 {
   "name": "linquery",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Typed and extensible ORM for JavaScript and TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
