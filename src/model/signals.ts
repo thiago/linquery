@@ -123,17 +123,18 @@ export const signalsRegistry = new SignalRegistry()
 
 
 /**
- * Wraps a signal handler with a try-catch block to suppress and log errors, ensuring safe execution.
+ * Wraps a signal handler function in error handling logic to suppress and optionally log errors.
  *
- * @param {SignalHandler<T>} fn The original signal handler function to be wrapped.
- * @return {SignalHandler<T>} A new signal handler function with error suppression and logging.
+ * @param {SignalHandler<T>} fn - The signal handler function to be wrapped.
+ * @param {boolean} [log] - Optional flag indicating whether to log suppressed errors.
+ * @return {SignalHandler<T>} A new signal handler function with error handling.
  */
-export function safeHandler<T extends BaseModel>(fn: SignalHandler<T>): SignalHandler<T> {
+export function safeHandler<T extends BaseModel>(fn: SignalHandler<T>, log?:boolean): SignalHandler<T> {
   return async (instance: T) => {
     try {
       await fn(instance)
     } catch (err) {
-      console.warn(`[signal] handler suppressed:`, err)
+      if(log) console.warn(`[signal] handler suppressed:`, err)
     }
   }
 }

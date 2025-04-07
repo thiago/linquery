@@ -1,13 +1,10 @@
 {
-  "name": "@thiago/linquery",
+  "name": "linquery",
   "version": "0.1.0",
   "description": "Typed and extensible ORM for JavaScript and TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "module": "dist/index.mjs",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com/"
-  },
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
@@ -21,7 +18,8 @@
     "build": "tsup src/index.ts --dts",
     "dev": "tsup src/index.ts --dts --watch",
     "docs": "typedoc",
-    "test": "vitest"
+    "test": "vitest",
+    "coverage": "vitest run --coverage"
   },
   "keywords": [
     "orm",
@@ -36,12 +34,13 @@
   "devDependencies": {
     "@changesets/cli": "^2.28.1",
     "@types/dexie": "^1.3.32",
+    "@vitest/coverage-v8": "^3.1.1",
     "dexie": "^4.0.11",
     "docusaurus-plugin-typedoc": "^1.3.0",
-    "tsup": "8.3.5",
+    "tsup": "^8.4.0",
     "typedoc": "^0.28.1",
     "typedoc-plugin-markdown": "^4.6.1",
     "typescript": "^5.0.0",
-    "vitest": "^1.6.1"
+    "vitest": "^3.1.1"
   }
 }
