@@ -16,7 +16,7 @@ This project provides a fully extensible ORM-like system designed for use with b
 ## Installation
 
 ```bash
-npm install --save @thiago/linquery
+npm install --save linquery
 ```
 
 ---
@@ -24,21 +24,33 @@ npm install --save @thiago/linquery
 ## Example: Defining a Model
 
 ```ts
-import { BaseModel, StringField, NumberField } from "./model/base-model"
+import { BaseModel, RelationField, modelRegistry } from "linquery"
+
+
+class Group extends BaseModel {
+    id
+    name
+
+    static backend = new MemoryBackend()
+    static objects = new QuerySet(Group, Group.backend)
+}
 
 class User extends BaseModel {
-  id!: string
-  name!: string
-  age!: number
+    id
+    name
+    age
+    group
+    
+    static fields = {
+        group: RelationField("Group"),
+    }
 
-  static fields = {
-    id: StringField(),
-    name: StringField(),
-    age: NumberField()
-  }
-
-  static objects = memoryBackend.queryset(User)
+    static backend = new MemoryBackend()
+    static objects = new QuerySet(User, User.backend)
 }
+
+modelRegistry.register(Group)
+modelRegistry.register(User)
 ```
 
 ---
@@ -46,8 +58,12 @@ class User extends BaseModel {
 ## Creating Instances
 
 ```ts
-const user = User.new({ id: "u1", name: "Alice", age: 30 })
-await user.save()
+const g = Group.new({id: "g1", name: "Dev"})
+await g.save()
+const u = User.new({id: "u1", name: "Ana", age: 20, group: {id: "g1"}})
+await u.save()
+const u2 = User.new({id: "u2", name: "Bia", age: 16, group: {id: "g1"}})
+await u2.save()
 ```
 
 ---
@@ -55,7 +71,7 @@ await user.save()
 ## Querying Data
 
 ```ts
-const results = await User.objects.filter({ name: "Alice" }).execute()
+const results = await User.objects.filter({ name: "Ana" }).execute()
 const count = await User.objects.filter({ age: { gte: 18 }}).count()
 ```
 
