@@ -1,8 +1,9 @@
-import {Field} from "./fields"
+import type {Field} from "../types"
 import {modelRegistry, type ModelRegistry} from "./registry"
 import {signalsRegistry, type SignalRegistry} from "./signals"
 import type {QuerySet} from "../queryset/queryset"
 import type {ModelClass} from "../types";
+import {InvalidRelationFieldError, RelatedModelNotFoundError} from "../errors";
 
 /**
  * The `BaseModel` class serves as an abstract foundation for models, providing a set of methods
@@ -129,7 +130,6 @@ export abstract class BaseModel {
                 toInternal: (v: any) => v,
             }
         }
-
         return {
             ...inferred,
             ...manualFields,
@@ -172,8 +172,10 @@ export abstract class BaseModel {
      * the save operation, and then emits a "post_save" signal upon completion.
      * @return {Promise<void>} A promise that resolves once the save operation and related signals are complete.
      */
-    async save(): Promise<void> {
+    async save(validate = true): Promise<void> {
         const cls = this.constructor as ModelClass<this>
+        Object.assign(this, this.normalize(this))
+        if (validate) await this.fullClean()
         await cls.signals.emit("pre_save", cls, this)
         const qs = cls.objects as QuerySet<this, any>
         await qs.save(this.beforeSave())
@@ -207,14 +209,15 @@ export abstract class BaseModel {
      * @throws {Error} If the specified field key is not a valid relation or the related model cannot be located.
      */
     async getRelated<R extends BaseModel>(fieldKey: keyof this): Promise<R | undefined> {
-        const field = (this.constructor as typeof BaseModel).fields?.[fieldKey as string]
+        const cls = (this.constructor as typeof BaseModel)
+        const field = cls.fields?.[fieldKey as string]
         if (!field || field.type !== "relation" || !field.model) {
-            throw new Error(`Field '${String(fieldKey)}' is not a valid relation`)
+            throw new InvalidRelationFieldError(cls.name, String(fieldKey))
         }
 
-        const registry = (this.constructor as typeof BaseModel).registry
+        const registry = cls.registry
         const relatedModel = registry.get(field.model) as unknown as ModelClass<R>
-        if (!relatedModel) throw new Error(`Model '${field.model}' not found`)
+        if (!relatedModel) throw new RelatedModelNotFoundError(cls.name, String(fieldKey), field.model)
 
         const value = this[fieldKey]
         const id = typeof value === "object" && value !== null ? (value as any).id : value
@@ -228,16 +231,69 @@ export abstract class BaseModel {
      * @param {string} foreignKey - The foreign key in the related model to filter by.
      * @return {Promise<R[]>} A promise that resolves to an array of related models.
      */
-    async getRelatedMany<R extends BaseModel>(
+    getRelatedMany<R extends BaseModel>(
         modelName: string,
         foreignKey: string
-    ): Promise<R[]> {
-        const registry = (this.constructor as typeof BaseModel).registry
+    ): QuerySet<R, any> {
+        const cls = (this.constructor as typeof BaseModel)
+        const registry = cls.registry
         const relatedModel = registry.get(modelName) as unknown as ModelClass<R>
-        if (!relatedModel) throw new Error(`Model '${modelName}' not found`)
+        if (!relatedModel) throw new RelatedModelNotFoundError(cls.name, String(foreignKey))
 
         const value = this.getPk()
         const filter = {[`${foreignKey}.id`]: value}
-        return relatedModel.objects.filter(filter as any).execute()
+        return relatedModel.objects.filter(filter as any)
+    }
+
+    /**
+     * Retrieves the schema for the fields defined in the class. The schema is an object
+     * where each key corresponds to a field name and its value is the validator function
+     * associated with that particular field.
+     *
+     * @return {Record<string, (value: any) => any>} An object representing the schema of validators for the fields.
+     */
+    static getSchema(): Record<string, (value: any) => any> {
+        const fields = this.getFields()
+        const schema: Record<string, (value: any) => any> = {}
+        for (const [key, field] of Object.entries(fields)) {
+            if (field.validator) {
+                schema[key] = field.validator
+            }
+        }
+        return schema
+    }
+
+    /**
+     * Performs a full cleaning process on the model instance by validating
+     * each property against the schema defined in the model and then
+     * executing additional cleaning logic.
+     *
+     * @return {Promise<void>} A promise that resolves when the cleaning operation is complete.
+     */
+    async fullClean(): Promise<void> {
+        const schema = (this.constructor as typeof BaseModel).getSchema()
+        for (const [key, validator] of Object.entries(schema)) {
+            try {
+                const value = this[key as keyof this]
+                validator(value)
+            } catch (e) {
+                throw new Error(`Validation error on '${key}': ${e}`)
+            }
+        }
+        await this.clean(schema)
+    }
+
+    /**
+     * Cleans and validates the data against the provided schema by applying the respective
+     * transformation functions defined in the schema.
+     *
+     * @param {Record<string, (value: any) => any>} schema - An object describing the validation
+     * and transformation rules for cleaning the data. Each key in the object represents a
+     * property name, and the associated function is used to validate or transform the value
+     * of that property.
+     * @return {Promise<void>} A Promise that resolves once the cleaning process is complete.
+     */
+    async clean(schema: Record<string, (value: any) => any>): Promise<void> {
+        // Override this to add additional validation
     }
 }

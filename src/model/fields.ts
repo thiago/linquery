@@ -1,28 +1,4 @@
-// field-types.ts
-
-export type FieldType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "relation"
-  | "email"
-  | "enum"
-  | "json"
-  | string
-
-export type Field<T = any> = {
-  type: FieldType
-  required?: boolean
-  default?: T
-  label?: string
-  description?: string
-  enum?: T[]
-  model?: string
-  reverseName?: string
-  toInternal?: (value: any) => T
-  toExternal?: (value: T) => any
-}
+import {Field} from "../types";
 
 export function StringField(config: Partial<Field<string>> = {}): Field<string> {
   return { type: "string", ...config }

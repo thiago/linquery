@@ -2,7 +2,7 @@ import {describe, it, expect, beforeEach} from 'vitest'
 import {BaseModel, QuerySet, type Filter} from '../src'
 import {MemoryBackend} from '../src/backends/memory'
 
-// 🔧 Modelo fictício para o teste
+
 class User extends BaseModel {
     id!: string
     name!: string
@@ -28,6 +28,7 @@ describe('MemoryBackend', () => {
         expect(result?.name).toBe('Alice')
         expect(result?.age).toBe(30)
     })
+
     it('should save and retrieve a user by id', async () => {
         const user = User.new({id: '1', name: 'Alice', age: 30})
         await user.save()

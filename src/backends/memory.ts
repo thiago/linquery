@@ -1,4 +1,4 @@
-import type { QueryBackend } from "../types"
+import {ExecuteOptions, QueryBackend} from "../types"
 import type { BaseModel } from "../model/base-model"
 import { match } from "../queryset/match"
 
@@ -20,12 +20,7 @@ export class MemoryBackend<T extends BaseModel, F> implements QueryBackend<T, F>
     order = [],
     limit,
     offset
-  }: {
-    filters?: F
-    order?: string[]
-    limit?: number
-    offset?: number
-  }): Promise<T[]> {
+  }: ExecuteOptions<F>): Promise<T[]> {
     let results = Array.from(this.data.values()).filter(item =>
       filters ? match(item, filters) : true
     )
@@ -57,7 +52,6 @@ export class MemoryBackend<T extends BaseModel, F> implements QueryBackend<T, F>
     const modelClass = instance.constructor as typeof BaseModel
     const pkField = modelClass.pkField ?? "id"
     let pk = instance.getPk()
-
     if (!pk && this.options.autoGeneratePk) {
       (instance as any)[pkField] = this.options.generateFn?.() ?? crypto.randomUUID()
       pk = (instance as any)[pkField]

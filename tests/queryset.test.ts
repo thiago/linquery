@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
-import { QuerySet } from "../src"
-import { BaseModel, type QueryBackend } from "../src"
+import {beforeEach, describe, expect, it, vi} from "vitest"
+import {BaseModel, type QueryBackend, QuerySet} from "../src"
+
+import {MemoryBackend} from "../src/backends/memory"
+import {DoesNotExist, MultipleObjectsReturned} from "../src/errors"
 
 class TestModel extends BaseModel {
   id!: string
@@ -52,6 +54,11 @@ describe("QuerySet", () => {
       filters: { name: "Alice" },
       order: ["name"],
       limit: 5,
+      offset: undefined,
+      only: undefined,
+      prefetchRelated: undefined,
+      selectRelated: undefined,
+      relatedQuerySets: {}
     })
   })
 
@@ -85,4 +92,83 @@ describe("QuerySet", () => {
     const result = await queryset.count()
     expect(result).toBe(3)
   })
+})
+
+
+class Book extends BaseModel {
+    id!: string
+    title!: string
+    author!: string
+    pages!: number
+    static fields = {
+        id: {type: "string"},
+        title: {type: "string"},
+        author: {type: "string"},
+        pages: {type: "number"}
+    }
+    static backend = new MemoryBackend<Book, Partial<Book>>()
+    static objects = new QuerySet(Book, Book.backend)
+}
+
+describe("QuerySet.valuesList", () => {
+    beforeEach(() => {
+        Book.backend.clear()
+    })
+
+    it("returns flat list for single field with flat option", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "Title 1", author: "A", pages: 100}))
+        await Book.objects.save(Book.new({id: "2", title: "Title 2", author: "B", pages: 200}))
+
+        const result = await Book.objects.valuesList("id", {flat: true}).execute()
+        expect(result).toEqual(["1", "2"])
+    })
+
+    it("returns nested list for single field without flat", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "Title 1", author: "A", pages: 100}))
+
+        const result = await Book.objects.valuesList("id").execute()
+        expect(result).toEqual([["1"]])
+    })
+
+    it("returns nested list for multiple fields", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "Title 1", author: "A", pages: 100}))
+        await Book.objects.save(Book.new({id: "2", title: "Title 2", author: "B", pages: 200}))
+
+        const result = await Book.objects.valuesList("id", "title").execute()
+        expect(result).toEqual([
+            ["1", "Title 1"],
+            ["2", "Title 2"]
+        ])
+    })
+
+    it("ignores flat when multiple fields are passed", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "Title 1", author: "A", pages: 100}))
+
+        const result = await Book.objects.valuesList("id", "title", {flat: true} as any).execute()
+        expect(result).toEqual([["1", "Title 1"]])
+    })
+})
+
+describe("QuerySet.get", () => {
+    beforeEach(() => {
+        Book.backend.clear()
+    })
+
+    it("returns single object matching the filter", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "One", author: "A", pages: 100}))
+        const book = await Book.objects.get({id: "1"})
+        expect(book).toBeInstanceOf(Book)
+        expect(book.title).toBe("One")
+    })
+
+    it("throws DoesNotExist if no match", async () => {
+        await expect(Book.objects.get({id: "missing"})).rejects.toThrow(DoesNotExist)
+    })
+
+    it("throws MultipleObjectsReturned if more than one match", async () => {
+        await Book.objects.save(Book.new({id: "1", title: "One", author: "A", pages: 100}))
+        await Book.objects.save(Book.new({id: "2", title: "One", author: "B", pages: 200}))
+
+        await expect(Book.objects.get({title: "One"})).rejects.toThrow(MultipleObjectsReturned)
+    })
 })

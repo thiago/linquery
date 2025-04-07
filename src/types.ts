@@ -1,4 +1,5 @@
 import type {BaseModel} from "./model/base-model";
+import type {QuerySet} from "./queryset/queryset";
 
 export type ModelClass<T extends BaseModel> = {
     new(data: Partial<T>): T
@@ -7,12 +8,23 @@ export type ModelClass<T extends BaseModel> = {
 } & typeof BaseModel
 
 
+export interface ExecuteOptions<F> {
+    filters?: F
+    order?: string[]
+    limit?: number
+    offset?: number
+    only?: string[]
+    selectRelated?: string[]                         // one-to-one or FK
+    prefetchRelated?: string[]                       // one-to-many or m2m
+    /**
+     * Related querysets indexed by field name, used for resolving select_related and prefetch_related.
+     * Each key represents the related field (e.g., "group" or "tags"), and the value is a QuerySet already prepared with filters.
+     */
+    relatedQuerySets?: Record<string, QuerySet<any, any>>
+}
+
 export interface QueryBackend<T extends BaseModel, F> {
-    execute(query: {
-        filters?: F
-        order?: string[]
-        limit?: number
-    }): Promise<T[]>
+    execute(query: ExecuteOptions<F>): Promise<T[]>
 
     save(instance: T): Promise<void>
 
@@ -66,3 +78,30 @@ export type FilterLogical<T = any> = {
     OR?: FilterLogical<T>
     NOT?: FilterLogical<T>
 } & FilterWithLookups<T>
+
+
+export type FieldType =
+    | "string"
+    | "number"
+    | "boolean"
+    | "date"
+    | "relation"
+    | "email"
+    | "enum"
+    | "json"
+    | string
+
+
+export type Field<T = any> = {
+    type: FieldType
+    required?: boolean
+    default?: T
+    label?: string
+    description?: string
+    enum?: T[]
+    model?: string
+    reverseName?: string
+    toInternal?: (value: any) => T
+    toExternal?: (value: T) => any
+    validator?: (value: T) => void
+}

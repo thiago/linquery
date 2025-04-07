@@ -20,6 +20,7 @@
     "release": "changeset publish",
     "build": "tsup src/index.ts --dts",
     "dev": "tsup src/index.ts --dts --watch",
+    "docs": "typedoc",
     "test": "vitest"
   },
   "keywords": [
