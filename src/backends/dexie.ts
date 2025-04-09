@@ -1,39 +1,33 @@
-import type {Dexie, Table} from "dexie"
-import type {BaseModel} from "../model/base-model"
-import {QuerySet} from "../queryset/queryset"
+import type {Dexie, Table, Version} from "dexie"
+import type {Model} from "../model"
+import {QuerySet} from "../queryset"
 import type {Filter, FilterLookup, QueryBackend, ModelClass} from "../types"
-import {match} from "../queryset/match"
+import {match} from "../match"
 
 export const DEFAULT_DEXIE_DATABASE_KEY = "&id"
 
 export interface DexieBackendOptions {
     db: Dexie
+    version: number
     key?: string
     tableName: string
     indexes?: string[]
 }
 
-export class DexieBackend<T extends BaseModel, F extends Filter> implements QueryBackend<T, F> {
+
+export class DexieBackend<T extends Model, F extends Filter> implements QueryBackend<T, F> {
     private table: Table<any, string>
     private db: Dexie
+    private store: Version
+
     constructor(
         private modelClass: ModelClass<T>,
-        private options: DexieBackendOptions & {
-            querysetClass?: new (model: ModelClass<T>, backend: QueryBackend<T, F>) => QuerySet<T, F>
-        }
+        private options: DexieBackendOptions
     ) {
         this.db = options.db
         const indexDef = options.indexes?.length ? "," + options.indexes.join(",") : ""
-        this.db.version(1).stores({[options.tableName]: `${options.key || DEFAULT_DEXIE_DATABASE_KEY}${indexDef}`})
+        this.store = this.db.version(options.version).stores({[options.tableName]: `${options.key || DEFAULT_DEXIE_DATABASE_KEY}${indexDef}`})
         this.table = this.db.table(options.tableName)
-    }
-
-    queryset(): QuerySet<T, F> {
-        const QuerySetClass =
-            this.options.querysetClass ??
-            (QuerySet as new (model: ModelClass<T>, backend: QueryBackend<T, F>) => QuerySet<T, F>)
-
-        return new QuerySetClass(this.modelClass, this)
     }
 
     async execute({filters = {} as F, order = [], limit, offset}: {

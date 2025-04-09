@@ -1,11 +1,38 @@
-import type {BaseModel} from "./model/base-model";
-import type {QuerySet} from "./queryset/queryset";
+import type {BaseModel, Model, NestedModel} from "./model";
+import type {QuerySet} from "./queryset";
+import type {ModelRegistry} from "./registry"
+import type {SignalRegistry} from "./signals"
 
-export type ModelClass<T extends BaseModel> = {
-    new(data: Partial<T>): T
+export type BaseModelClass<T extends BaseModel> = {
+    new(data?: Partial<T>): T
     new(data?: any): T
     new: (data: Partial<T>) => T
+    fullClean(): Promise<void>
+    getFields(): Record<string, Field>
 } & typeof BaseModel
+
+export type ModelClass<T extends Model> = {
+    new(data?: Partial<T>): T
+    new(data?: any): T
+    new: (data: Partial<T>) => T
+
+    getFields(): Record<string, Field>
+    getSchema(): Record<string, (value: any) => any>
+
+    objects: QuerySet<T, any>
+    pkField?: string
+    fields?: Record<string, Field>
+    registry?: ModelRegistry
+    signals?: SignalRegistry
+} & typeof BaseModel & typeof Model
+
+export type NestedModelClass<T extends NestedModel> = {
+    new(data?: Partial<T>): T
+    new(data?: any): T
+    new: (data: Partial<T>) => T
+    getFields(): Record<string, Field>
+    getSchema(): Record<string, (value: any) => any>
+} & typeof BaseModel & typeof NestedModel
 
 
 export interface ExecuteOptions<F> {
@@ -23,7 +50,7 @@ export interface ExecuteOptions<F> {
     relatedQuerySets?: Record<string, QuerySet<any, any>>
 }
 
-export interface QueryBackend<T extends BaseModel, F> {
+export interface QueryBackend<T extends Model, F> {
     execute(query: ExecuteOptions<F>): Promise<T[]>
 
     save(instance: T): Promise<void>
@@ -79,18 +106,19 @@ export type FilterLogical<T = any> = {
     NOT?: FilterLogical<T>
 } & FilterWithLookups<T>
 
+export enum FieldTypeEnum {
+    String = "string",
+    Number = "number",
+    Boolean = "boolean",
+    Date = "date",
+    Relation = "relation",
+    Email = "email",
+    Enum = "enum",
+    JSON = "json",
+    Nested = "nested",
+}
 
-export type FieldType =
-    | "string"
-    | "number"
-    | "boolean"
-    | "date"
-    | "relation"
-    | "email"
-    | "enum"
-    | "json"
-    | string
-
+export type FieldType = FieldTypeEnum | (string & {})
 
 export type Field<T = any> = {
     type: FieldType
@@ -99,9 +127,12 @@ export type Field<T = any> = {
     label?: string
     description?: string
     enum?: T[]
-    model?: string
+    model?: string | ModelClass<any> | BaseModelClass<any> | NestedModelClass<any>
     reverseName?: string
     toInternal?: (value: any) => T
     toExternal?: (value: T) => any
     validator?: (value: T) => void
 }
+
+export type EnumLike = Record<string, string | number>
+export type EnumValues<T extends EnumLike> = T[keyof T]

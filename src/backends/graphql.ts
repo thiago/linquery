@@ -1,5 +1,5 @@
 // graphql-backend.ts
-import type {BaseModel} from "../model/base-model"
+import type {Model} from "../model"
 import {QueryBackend, ModelClass, Ordering} from "../types"
 
 export type GraphQLQueryExecutor<T, FilterType, Order> = (params: {
@@ -8,7 +8,7 @@ export type GraphQLQueryExecutor<T, FilterType, Order> = (params: {
     order?: Partial<Order>
 }) => Promise<T[]>
 
-export class Graphql<T extends BaseModel, F, Order> implements QueryBackend<T, F> {
+export class GraphqlBackend<T extends Model, F, Order> implements QueryBackend<T, F> {
     constructor(
         private executor: GraphQLQueryExecutor<T, F, Order>,
         private modelClass: ModelClass<T>

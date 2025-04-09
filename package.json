@@ -2,24 +2,22 @@
   "name": "linquery",
   "version": "0.2.0",
   "description": "Typed and extensible ORM for JavaScript and TypeScript",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "module": "dist/index.mjs",
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
-  },
+  "main": "index.cjs",
+  "module": "index.js",
+  "types": "index.d.ts",
   "scripts": {
     "changeset": "changeset",
     "version": "changeset version",
     "release": "changeset publish",
-    "build": "tsup src/index.ts --dts",
-    "dev": "tsup src/index.ts --dts --watch",
+    "build": "tsup && tsc -p tsconfig.build.json",
+    "dev": "tsup --watch",
     "docs": "typedoc",
     "test": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "postbuild": "cp README.md package.json package-lock.json dist",
+    "preinject": "npm run build",
+    "inject": "rm -rf ../gestao/frontend/node_modules/linquery && mkdir -p ../gestao/frontend/node_modules/linquery && cp -r dist/* ../gestao/frontend/node_modules/linquery"
+
   },
   "keywords": [
     "orm",

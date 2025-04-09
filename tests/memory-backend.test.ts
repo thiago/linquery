@@ -1,9 +1,9 @@
 import {describe, it, expect, beforeEach} from 'vitest'
-import {BaseModel, QuerySet, type Filter} from '../src'
+import {Model, QuerySet, type Filter} from '../src'
 import {MemoryBackend} from '../src/backends/memory'
 
 
-class User extends BaseModel {
+class User extends Model {
     id!: string
     name!: string
     age!: number

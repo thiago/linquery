@@ -1,13 +1,13 @@
 import {ExecuteOptions, QueryBackend} from "../types"
-import type { BaseModel } from "../model/base-model"
-import { match } from "../queryset/match"
+import type { Model } from "../model"
+import { match } from "../match"
 
 interface MemoryBackendOptions {
   autoGeneratePk?: boolean
   generateFn?: () => string
 }
 
-export class MemoryBackend<T extends BaseModel, F> implements QueryBackend<T, F> {
+export class MemoryBackend<T extends Model, F> implements QueryBackend<T, F> {
   private data: Map<string, T> = new Map()
   private options: MemoryBackendOptions
 
@@ -49,7 +49,7 @@ export class MemoryBackend<T extends BaseModel, F> implements QueryBackend<T, F>
   }
 
   async save(instance: T): Promise<void> {
-    const modelClass = instance.constructor as typeof BaseModel
+    const modelClass = instance.constructor as typeof Model
     const pkField = modelClass.pkField ?? "id"
     let pk = instance.getPk()
     if (!pk && this.options.autoGeneratePk) {

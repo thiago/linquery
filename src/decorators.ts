@@ -1,6 +1,6 @@
 import type {Field, ModelClass} from "./types";
-import type {BaseModel} from "./model/base-model";
-import {modelRegistry, type ModelRegistry} from "./model/registry";
+import type {Model} from "./model";
+import {registry, type ModelRegistry} from "./registry";
 
 /**
  * Internal utility to create field decorators dynamically.
@@ -21,10 +21,10 @@ export function field<T>(field: Field<T>): PropertyDecorator {
 /**
  * Decorator version of register
  */
-export function register(name?: string | undefined, registry?: ModelRegistry): ClassDecorator {
+export function register(name?: string | undefined, customRegistry?: ModelRegistry): ClassDecorator {
     return function (target: Function) {
 
-        (registry ?? modelRegistry).register(target as ModelClass<BaseModel>, name)
+        (customRegistry ?? registry).register(target as ModelClass<Model>, name)
     }
 }
 

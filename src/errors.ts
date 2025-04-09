@@ -66,3 +66,24 @@ export class ModelAlreadyRegistered extends BaseError {
     super(`Model '${modelName}' is already registered.`)
   }
 }
+
+export class InvalidModelReferenceError extends BaseError {
+  constructor({
+    modelName,
+    fieldName,
+    received,
+  }: {
+    modelName: string
+    fieldName: string
+    received: unknown
+  }) {
+    const type = typeof received === "function"
+      ? received?.name || "[anonymous function]"
+      : JSON.stringify(received)
+
+    super(
+      `[linquery] Invalid model reference in field '${fieldName}' of '${modelName}':\n` +
+      `Expected a registered model name or a ModelClass, but received: ${type}`
+    )
+  }
+}

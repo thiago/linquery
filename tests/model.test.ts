@@ -1,13 +1,13 @@
 import {describe, it, expect, vi, beforeEach} from "vitest"
-import {BaseModel, type ModelClass, ModelRegistry, modelRegistry} from "../src"
+import {Model, type ModelClass, ModelRegistry, modelRegistry} from "../src"
 import {MemoryBackend} from "../src/backends/memory"
 import {QuerySet} from "../src"
-import * as fields from "../src/model/fields"
+import * as fields from "../src/fields"
 import {InvalidRelationFieldError, RelatedModelNotFoundError} from "../src/errors";
 
 const registry = new ModelRegistry()
 
-class Group extends BaseModel {
+class Group extends Model {
     id!: string
     name!: string
 
@@ -20,7 +20,7 @@ class Group extends BaseModel {
     static objects = new QuerySet(Group, Group.backend)
 }
 
-class User extends BaseModel {
+class User extends Model {
     id!: string
     name!: string
     group!: { id: string }
@@ -34,7 +34,7 @@ class User extends BaseModel {
     static objects = new QuerySet(User, User.backend)
 }
 
-describe("BaseModel", () => {
+describe("Model", () => {
     beforeEach(() => {
         Group.backend.clear()
         User.backend.clear()
@@ -103,7 +103,7 @@ describe("BaseModel", () => {
     })
 
     it("throws error if related model is invalid", async () => {
-        class Invalid extends BaseModel {
+        class Invalid extends Model {
             static fields = {
                 something: fields.RelationField("DoesNotExist")
             }
@@ -117,7 +117,7 @@ describe("BaseModel", () => {
     })
 
     it("infers fields if not defined", () => {
-        class InferModel extends BaseModel {
+        class InferModel extends Model {
             id = "123"
             active = true
         }
@@ -147,7 +147,7 @@ describe("BaseModel", () => {
     })
 
     it("throws InvalidRelationFieldError for non-relation field", async () => {
-        class OtherUser extends BaseModel {
+        class OtherUser extends Model {
             id!: string
             name!: string
 
@@ -166,7 +166,7 @@ describe("BaseModel", () => {
     })
 
     it("throws RelatedModelNotFoundError when related model is not registered", async () => {
-        class Broken extends BaseModel {
+        class Broken extends Model {
             id!: string
             owner?: string
 

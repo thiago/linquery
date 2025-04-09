@@ -1,6 +1,6 @@
 // signal-registry.ts
-import type { BaseModel } from "./base-model"
-import type { ModelClass } from "../types"
+import type { Model } from "./model"
+import type { ModelClass } from "./types"
 
 /**
  * Represents the set of default model events that can occur during the lifecycle
@@ -30,18 +30,18 @@ export type ModelEvent = DefaultModelEvent | (string & {})
 
 /**
  * Represents a callback function type designed to handle signal processing
- * for instances of a specific model extending the `BaseModel` class.
+ * for instances of a specific model extending the `Model` class.
  *
  * This type is used to execute operations such as data updates, validations, or any
  * custom processing on a given instance. The function can handle both synchronous
  * and asynchronous operations.
  *
- * @template T - A model class extending the `BaseModel` type.
- * @param {T} instance - The specific instance of the `BaseModel` to process or handle.
+ * @template T - A model class extending the `Model` type.
+ * @param {T} instance - The specific instance of the `Model` to process or handle.
  * @returns {void | Promise<void>} The function can either return nothing for synchronous
  * handling or a `Promise` for asynchronous processing.
  */
-export type SignalHandler<T extends BaseModel> = (instance: T) => void | Promise<void>
+export type SignalHandler<T extends Model> = (instance: T) => void | Promise<void>
 
 /**
  * A registry for managing signal handlers related to models and events.
@@ -58,7 +58,7 @@ export class SignalRegistry {
    * @param {SignalHandler<T>} handler - The callback function to handle the event.
    * @return {void}
    */
-  on<T extends BaseModel>(
+  on<T extends Model>(
     event: ModelEvent,
     model: ModelClass<T>,
     handler: SignalHandler<T>
@@ -76,7 +76,7 @@ export class SignalRegistry {
    * @param {SignalHandler<T>} [handler] - The specific handler to remove. If not provided, all handlers for the event and model will be removed.
    * @return {void} - No return value.
    */
-  off<T extends BaseModel>(
+  off<T extends Model>(
     event: ModelEvent,
     model: ModelClass<T>,
     handler?: SignalHandler<T>
@@ -98,7 +98,7 @@ export class SignalRegistry {
    * @param {T} instance - The instance of the model related to the emitted event.
    * @return {Promise<void>} A promise that resolves when all event handlers have been executed.
    */
-  async emit<T extends BaseModel>(
+  async emit<T extends Model>(
     event: ModelEvent,
     model: ModelClass<T>,
     instance: T
@@ -115,11 +115,11 @@ export class SignalRegistry {
 
 /**
  * Represents a central registry for managing and storing signals.
- * The `signalsRegistry` variable is an instance of the `SignalRegistry` class,
+ * The `signals` variable is an instance of the `SignalRegistry` class,
  * which facilitates the registration, lookup, and management of signal instances
  * used throughout the application.
  */
-export const signalsRegistry = new SignalRegistry()
+export const signals = new SignalRegistry()
 
 
 /**
@@ -129,7 +129,7 @@ export const signalsRegistry = new SignalRegistry()
  * @param {boolean} [log] - Optional flag indicating whether to log suppressed errors.
  * @return {SignalHandler<T>} A new signal handler function with error handling.
  */
-export function safeHandler<T extends BaseModel>(fn: SignalHandler<T>, log?:boolean): SignalHandler<T> {
+export function safeHandler<T extends Model>(fn: SignalHandler<T>, log:boolean=true): SignalHandler<T> {
   return async (instance: T) => {
     try {
       await fn(instance)

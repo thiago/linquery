@@ -1,8 +1,7 @@
-// model-registry.ts
-import {BaseModel} from "./base-model"
-import {ModelClass} from "../types";
-import type {Field} from "../types"
-import {ModelAlreadyRegistered, RelatedModelNotFoundError} from "../errors";
+import {isModelClass, Model} from "./model"
+import type {Field} from "./types"
+import {FieldTypeEnum, ModelClass} from "./types";
+import {InvalidModelReferenceError, ModelAlreadyRegistered, RelatedModelNotFoundError} from "./errors";
 
 /**
  * A registry for managing and validating models in an application. This class is used to
@@ -10,6 +9,7 @@ import {ModelAlreadyRegistered, RelatedModelNotFoundError} from "../errors";
  */
 export class ModelRegistry {
     private models = new Map<string, ModelClass<any>>()
+    private initialized = false
 
     /**
      * Registers a model class with an optional name.
@@ -19,7 +19,7 @@ export class ModelRegistry {
      * @return {void} - Does not return any value.
      * @throws {ModelAlreadyRegistered} If a model with the given name is already registered.
      */
-    register<T extends BaseModel>(modelClass: ModelClass<T>, name?: string) {
+    register<T extends Model>(modelClass: ModelClass<T>, name?: string) {
         const modelName = name || modelClass.name
 
         if (this.models.has(modelName)) {
@@ -66,31 +66,51 @@ export class ModelRegistry {
      *
      * @return {void} Returns nothing. Throws an error if a validation issue is encountered.
      */
+
     validate() {
         for (const model of this.getAll()) {
             const fields = (model as any).fields as Record<string, Field<any>> | undefined
             if (!fields) continue
 
             for (const [fieldName, field] of Object.entries(fields)) {
-                if (field.type === "relation") {
-                    const relatedModel = this.get((field as any).model)
-                    if (!relatedModel) {
-                        throw new RelatedModelNotFoundError(model.name, fieldName, (field as any).model)
+                if (field.type === FieldTypeEnum.Relation) {
+                    let relatedModel: ModelClass<any> | undefined
+
+                    if (typeof field.model === "string") {
+                        relatedModel = this.get(field.model)
+                        if (!relatedModel) {
+                            throw new RelatedModelNotFoundError(model.name, fieldName, field.model)
+                        }
+                    } else if (isModelClass(field.model)) {
+                        relatedModel = field.model
+                    } else {
+                        throw new InvalidModelReferenceError({
+                            modelName: model.name,
+                            fieldName,
+                            received: field.model,
+                        })
                     }
 
-                    const reverseName = (field as any).reverseName || `${model.name.charAt(0).toLowerCase()}${model.name.slice(1)}Set`
+                    const reverseName =
+                        field.reverseName || `${model.name.charAt(0).toLowerCase()}${model.name.slice(1)}Set`
 
                     if (!(reverseName in relatedModel.prototype)) {
                         Object.defineProperty(relatedModel.prototype, reverseName, {
                             value: function () {
                                 return this.getRelatedMany(model.name, fieldName)
                             },
-                            writable: false
+                            writable: false,
                         })
                     }
                 }
             }
         }
+    }
+
+    initialize() {
+        if (this.initialized) return
+        this.validate()
+        this.initialized = true
     }
 }
 
@@ -100,4 +120,4 @@ export class ModelRegistry {
  * It acts as a centralized storage to register, retrieve, and organize models efficiently.
  * Utilized to maintain a consistent reference to models throughout the application lifecycle.
  */
-export const modelRegistry = new ModelRegistry()
+export const registry = new ModelRegistry()

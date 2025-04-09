@@ -1,6 +1,6 @@
 # ORM-like Query System for JavaScript/TypeScript
 
-This project provides a fully extensible ORM-like system designed for use with both in-memory and persistent backends (e.g., Dexie for IndexedDB, GraphQL APIs). It models core ORM principles (inspired by Django) such as `BaseModel`, `QuerySet`, `Field` abstraction, `SignalRegistry`, and registry-based model relationships.
+This project provides a fully extensible ORM-like system designed for use with both in-memory and persistent backends (e.g., Dexie for IndexedDB, GraphQL APIs). It models core ORM principles (inspired by Django) such as `Model`, `QuerySet`, `Field` abstraction, `SignalRegistry`, and registry-based model relationships.
 
 ## Features
 
@@ -24,10 +24,11 @@ npm install --save linquery
 ## Example: Defining a Model
 
 ```ts
-import { BaseModel, RelationField, modelRegistry } from "linquery"
+import { Model, RelationField, modelRegistry, QuerySet } from "linquery"
+import { MemoryBackend } from "linquery/backends/memory"
 
 
-class Group extends BaseModel {
+class Group extends Model {
     id
     name
 
@@ -35,7 +36,7 @@ class Group extends BaseModel {
     static objects = new QuerySet(Group, Group.backend)
 }
 
-class User extends BaseModel {
+class User extends Model {
     id
     name
     age
@@ -109,7 +110,7 @@ User.signals.on("pre_save", User, async (instance) => {
 ### MemoryBackend
 
 ```ts
-import { MemoryBackend } from "./backends/memory"
+import { MemoryBackend } from "linquery/backends/memory"
 
 const memoryBackend = new MemoryBackend<User, Filter<User>>()
 ```
@@ -117,7 +118,7 @@ const memoryBackend = new MemoryBackend<User, Filter<User>>()
 ### DexieBackend
 
 ```ts
-import { DexieBackend } from "./backends/dexie"
+import { DexieBackend } from "linquery/backends/dexie"
 
 const dexieBackend = new DexieBackend(User, {
   tableName: "users",
@@ -128,7 +129,7 @@ const dexieBackend = new DexieBackend(User, {
 ### GraphQLBackend
 
 ```ts
-import { Graphql } from "./backends/graphql"
+import { Graphql } from "linquery/backends/graphql"
 
 const gqlBackend = new Graphql<User, UserFilter, UserOrder>((params) => {
   return client.getUsers(params)  // Your GraphQL client call

@@ -1,5 +1,5 @@
 import {getLookup} from "./lookup-registry"
-import type {Filter, FilterLookup} from "../types"
+import type {Filter, FilterLookup} from "./types"
 
 function getByPath(obj: any, path: string): any {
     return path.split(".").reduce((acc, part) => acc?.[part], obj)

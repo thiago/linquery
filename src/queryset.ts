@@ -1,6 +1,6 @@
-import type {BaseModel} from "../model/base-model"
-import type {ExecuteOptions, ModelClass, QueryBackend} from "../types";
-import {DoesNotExist, MultipleObjectsReturned} from "../errors"
+import {isModelClass, Model} from "./model"
+import type {ExecuteOptions, ModelClass, QueryBackend} from "./types";
+import {DoesNotExist, MultipleObjectsReturned} from "./errors"
 
 /**
  * A class representing a queryable set of data related to a specific model.
@@ -10,7 +10,7 @@ import {DoesNotExist, MultipleObjectsReturned} from "../errors"
  * @template T The type of the model this QuerySet operates on.
  * @template F The type of the filter object used in queries.
  */
-export class QuerySet<T extends BaseModel, F> {
+export class QuerySet<T extends Model, F> {
     /**
      * Represents a generic class or constructor for creating model instances.
      *
@@ -278,7 +278,7 @@ export class QuerySet<T extends BaseModel, F> {
                 const field = fields[fieldName]
                 if (!field || field.type !== "relation" || !field.model) continue
 
-                const RelatedModel = this.modelClass.registry.get(field.model)
+                const RelatedModel = typeof field.model === 'string' ? this.modelClass.registry.get(field.model) : field.model as ModelClass<any>
                 if (!RelatedModel) continue
 
                 options.relatedQuerySets![fieldName] = RelatedModel.objects
