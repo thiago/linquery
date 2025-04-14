@@ -2,26 +2,30 @@ import {BaseModelClass, Field, FieldTypeEnum, ModelClass, NestedModelClass} from
 import {type ModelRegistry, registry} from "./registry"
 import {type SignalRegistry, signals} from "./signals"
 import type {QuerySet} from "./queryset"
-import {InvalidRelationFieldError, RelatedModelNotFoundError} from "./errors";
+import {InvalidRelationFieldError, RelatedModelNotFoundError, ValidationError} from "./errors";
+
+const schemaCache: Record<string, any> = {}
+const schemaBuilding: Set<string> = new Set()
 
 export abstract class BaseModel {
     static pkField = "id"
     static fields: Record<string, Field> = {}
 
-    constructor(data?: Record<string, any>) {
-        if (data) {
-            Object.assign(this, this.normalize(data as Partial<this>))
+    constructor() {
+        if (arguments.length > 0) {
+            throw new Error(`${this.constructor.name} cannot be instantiated with data. Use ${this.constructor.name}.new() instead.`)
         }
     }
 
-    static new<T extends Model>(this: new (data?: any) => T, data: Partial<T>): T {
+    static new<T extends BaseModel>(this: new (data?: any) => T, data?: Partial<T>): T {
         const instance = new this()
+        if (!data) return instance
         Object.assign(instance, instance.normalize(data))
         return instance
     }
 
     getPk(): string | undefined {
-        const pk = (this.constructor as typeof Model).pkField
+        const pk = (this.constructor as typeof BaseModel).pkField
         return this[pk as keyof this] as string | undefined
     }
 
@@ -44,7 +48,7 @@ export abstract class BaseModel {
     }
 
     normalize(data: Partial<this>): Partial<this> {
-        const fields = (this.constructor as typeof Model).getFields()
+        const fields = (this.constructor as typeof BaseModel).getFields()
         const normalized: Record<string, any> = {}
 
         for (const [key, field] of Object.entries(fields)) {
@@ -69,19 +73,35 @@ export abstract class BaseModel {
         return normalized as Partial<this>
     }
 
-    static getSchema(): Record<string, (value: any) => any> {
+    static getSchema(cache: Map<string, Record<string, (value: any) => any>> = new Map()): Record<string, (value: any) => any> {
+        const modelName = this.name
+
+        // Already built? Return cached
+        if (cache.has(modelName)) return cache.get(modelName)!
+
         const fields = this.getFields()
         const schema: Record<string, (value: any) => any> = {}
 
-        for (const [key, field] of Object.entries(fields)) {
-            // Se o campo for nested e tiver uma model diretamente associada
-            if (field.type === FieldTypeEnum.Nested && typeof field.model === "function" && "getSchema" in field.model) {
-                schema[key] = (field.model as any).getSchema()
-                continue
-            }
+        // Cache early to break circular references
+        cache.set(modelName, schema)
 
-            // Campo com validação direta
-            if (field.validator) {
+        for (const [key, field] of Object.entries(fields)) {
+            if (
+                field.type === FieldTypeEnum.Nested &&
+                typeof field.model === "function" &&
+                "getSchema" in field.model
+            ) {
+                const nestedModel = field.model as typeof BaseModel
+                const nestedSchema = nestedModel.getSchema(cache)
+
+                // Composite validator for nested model
+                schema[key] = (value: any) => {
+                    for (const [nestedKey, validator] of Object.entries(nestedSchema)) {
+                        validator(value?.[nestedKey])
+                    }
+                    return true
+                }
+            } else if (field.validator) {
                 schema[key] = field.validator
             }
         }
@@ -100,12 +120,11 @@ export abstract class BaseModel {
                 await value.fullClean()
             }
 
-            // Validação normal
             if (typeof validatorOrSchema === "function") {
                 try {
                     validatorOrSchema(value)
                 } catch (e) {
-                    throw new Error(`Validation error on '${key}': ${e}`)
+                    throw new ValidationError(key, value, e)
                 }
             }
         }
@@ -148,48 +167,55 @@ export abstract class Model extends BaseModel {
         await cls.signals.emit("post_delete", cls, this)
     }
 
-    async getRelated<R extends Model>(fieldKey: keyof this): Promise<R | undefined> {
+    prepareRelated<R extends Model>(fieldKey: keyof this): QuerySet<R, any> {
         const cls = this.constructor as typeof Model
-        const field = cls.fields?.[fieldKey as string]
+        const field = cls.getFields()[fieldKey as string]
+
         if (!field || field.type !== FieldTypeEnum.Relation || !field.model) {
             throw new InvalidRelationFieldError(cls.name, String(fieldKey))
         }
 
-        let relatedModel: ModelClass<R> | undefined
+        const relatedModel = typeof field.model === "string" ? cls.registry.get(field.model) as ModelClass<R> : field.model as ModelClass<R>
 
-        if (typeof field.model === "string") {
-            const registry = cls.registry
-            relatedModel = registry.get(field.model) as unknown as ModelClass<R>
-            if (!relatedModel) {
-                throw new RelatedModelNotFoundError(cls.name, String(fieldKey), field.model)
-            }
-        } else {
-            relatedModel = field.model as ModelClass<R>
+        if (!relatedModel) {
+            throw new RelatedModelNotFoundError(cls.name, String(fieldKey), String(field.model))
         }
 
         const value = this[fieldKey]
         const id = typeof value === "object" && value !== null ? (value as any).id : value
 
-        return relatedModel.objects.filter({id} as any).first()
+        return relatedModel.objects.filter({id} as any)
     }
 
-    getRelatedMany<R extends Model>(
-        modelName: string,
-        foreignKey: string
-    ): QuerySet<R, any> {
-        const cls = (this.constructor as typeof Model)
-        const registry = cls.registry
-        const relatedModel = registry.get(modelName) as unknown as ModelClass<R>
-        if (!relatedModel) throw new RelatedModelNotFoundError(cls.name, String(foreignKey))
+    async getRelated<R extends Model>(fieldKey: keyof this): Promise<R | undefined> {
+        return this.prepareRelated<R>(fieldKey).first()
+    }
 
+    getRelatedMany<R extends Model>(fieldKey: keyof this): QuerySet<R, any> {
+        const cls = this.constructor as typeof Model
+        const field = cls.getFields()[fieldKey as string]
+
+        if (!field || !(field.type === FieldTypeEnum.Reverse || field.type === FieldTypeEnum.ManyToMany)) {
+            throw new InvalidRelationFieldError(cls.name, String(fieldKey))
+        }
+
+        const relatedModel = typeof field.model === "string"
+            ? cls.registry.get(field.model) as ModelClass<R>
+            : field.model as ModelClass<R>
+
+        if (!relatedModel) {
+            throw new RelatedModelNotFoundError(cls.name, String(fieldKey), String(field.model))
+        }
+
+        const reverseKey = field.relatedName ?? `${cls.name.charAt(0).toLowerCase()}${cls.name.slice(1)}`
         const value = this.getPk()
-        const filter = {[`${foreignKey}.id`]: value}
+        const filter = {[`${reverseKey}.id`]: value}
+
         return relatedModel.objects.filter(filter as any)
     }
 }
 
 export abstract class NestedModel extends BaseModel {
-    static parent: ModelClass<any>
 }
 
 export function isBaseModelClass<T extends BaseModel = any>(value: any): value is BaseModelClass<T> {

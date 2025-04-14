@@ -92,7 +92,7 @@ export class ModelRegistry {
                     }
 
                     const reverseName =
-                        field.reverseName || `${model.name.charAt(0).toLowerCase()}${model.name.slice(1)}Set`
+                        field.relatedName || `${model.name.charAt(0).toLowerCase()}${model.name.slice(1)}Set`
 
                     if (!(reverseName in relatedModel.prototype)) {
                         Object.defineProperty(relatedModel.prototype, reverseName, {

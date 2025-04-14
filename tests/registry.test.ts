@@ -1,5 +1,5 @@
 import {describe, it, expect, beforeEach} from "vitest"
-import {Model, modelRegistry, ModelRegistry} from "../src"
+import {Model, ModelRegistry} from "../src"
 import * as fields from "../src/fields"
 
 class Group extends Model {
@@ -53,7 +53,7 @@ describe("ModelRegistry", () => {
         registry.register(BankAccount)
         registry.validate()
 
-        const instance = new Group({id: "1", name: "test"})
+        const instance = Group.new({id: "1", name: "test"})
         expect(typeof (instance as any).bankAccountSet).toBe("function")
     })
 
@@ -72,7 +72,7 @@ describe("ModelRegistry", () => {
         class CustomReverse extends Model {
             id!: string
             static fields = {
-                group: fields.RelationField("Group", {reverseName: "customGroupAccounts"})
+                group: fields.RelationField("Group", {relatedName: "customGroupAccounts"})
             }
         }
 
@@ -80,7 +80,7 @@ describe("ModelRegistry", () => {
         registry.register(CustomReverse)
         registry.validate()
 
-        const instance = new Group({id: "1", name: "G1"})
+        const instance = Group.new({id: "1", name: "G1"})
         expect(typeof (instance as any).customGroupAccounts).toBe("function")
     })
 })

@@ -20,11 +20,14 @@ export class MultipleObjectsReturned extends BaseError {
 }
 
 export class ValidationError extends BaseError {
-  public details?: Record<string, string[]>
+  field: string
+  value: any
 
-  constructor(message: string = "Validation error", details?: Record<string, string[]>) {
+  constructor(field: string, value: any, originalError?: unknown) {
+    const message = `Validation error on '${field}': ${originalError instanceof Error ? originalError.message : originalError}`
     super(message)
-    this.details = details
+    this.field = field
+    this.value = value
   }
 }
 

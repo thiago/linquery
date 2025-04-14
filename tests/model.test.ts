@@ -1,5 +1,5 @@
 import {describe, it, expect, vi, beforeEach} from "vitest"
-import {Model, type ModelClass, ModelRegistry, modelRegistry} from "../src"
+import {Model, ModelRegistry} from "../src"
 import {MemoryBackend} from "../src/backends/memory"
 import {QuerySet} from "../src"
 import * as fields from "../src/fields"
@@ -10,13 +10,14 @@ const registry = new ModelRegistry()
 class Group extends Model {
     id!: string
     name!: string
-
+    users!: User[]
     static fields = {
         id: fields.StringField(),
         name: fields.StringField(),
+        users: fields.ReverseField('User', 'group'),
     }
 
-    static backend = new MemoryBackend<Group, { id?: string }>()
+    static backend = new MemoryBackend<Group, { id?: string }>(Group)
     static objects = new QuerySet(Group, Group.backend)
 }
 
@@ -28,9 +29,10 @@ class User extends Model {
         id: fields.StringField(),
         name: fields.StringField(),
         group: fields.RelationField("Group"),
+
     }
 
-    static backend = new MemoryBackend<User, { id?: string; group?: { id: string } }>()
+    static backend = new MemoryBackend<User, { id?: string; group?: { id: string } }>(User)
     static objects = new QuerySet(User, User.backend)
 }
 
@@ -41,6 +43,7 @@ describe("Model", () => {
         registry.clean()
         registry.register(Group)
         registry.register(User)
+        registry.initialize()
     })
 
     it("creates a new instance via static new()", () => {
@@ -97,7 +100,7 @@ describe("Model", () => {
         await User.new({id: "u1", name: "Ana", group: {id: "g2"}}).save()
         await User.new({id: "u2", name: "Bia", group: {id: "g2"}}).save()
 
-        const result = await g.getRelatedMany<User>("User", "group")
+        const result = g.getRelatedMany<User>("users")
         expect(await result.count()).toBe(2)
         expect(await result.first()).toBeInstanceOf(User)
     })
@@ -128,7 +131,7 @@ describe("Model", () => {
     })
 
     it("returns related model instance when valid", async () => {
-        const group = new Group({id: "g1", name: "Admin"})
+        const group = Group.new({id: "g1", name: "Admin"})
         await group.save()
 
         const user = User.new({id: "u1", name: "Alice", group: {id: "g1"}})
@@ -155,8 +158,7 @@ describe("Model", () => {
                 name: {type: "string"}
             }
 
-            static backend = new MemoryBackend<OtherUser, any>()
-            static objects = new QuerySet(OtherUser, OtherUser.backend)
+            static objects = new QuerySet(OtherUser, new MemoryBackend<OtherUser, any>(OtherUser))
         }
 
         registry.register(OtherUser)
@@ -174,8 +176,7 @@ describe("Model", () => {
                 owner: {type: "relation", model: "UnregisteredModel"}
             }
 
-            static backend = new MemoryBackend<Broken, any>()
-            static objects = new QuerySet(Broken, Broken.backend)
+            static objects = new QuerySet(Broken, new MemoryBackend<Broken, any>(Broken))
         }
 
         registry.register(Broken)
@@ -200,20 +201,20 @@ describe("Model", () => {
         await User.new({id: "u2", name: "Bob", group: {id: "g1"}}).save()
         await User.new({id: "u3", name: "Eve", group: {id: "g2"}}).save()
 
-        const relatedUsers = group.getRelatedMany<User>("User", "group")
+        const relatedUsers = group.getRelatedMany<User>("users")
         expect(await relatedUsers.all()).toHaveLength(2)
 
-        const relatedViewers = group2.getRelatedMany<User>("User", "group")
+        const relatedViewers = group2.getRelatedMany<User>("users")
         expect(await relatedViewers.all()).toHaveLength(1)
         expect(await relatedUsers.valuesList('name', {flat: true}).execute()).toEqual(expect.arrayContaining(["Alice", "Bob"]))
         expect((await Group.objects.all())).toHaveLength(2)
     })
 
-    it("returns an empty array if no related models match", async () => {
+    it("returns an empty array if no related models filterLookup", async () => {
         const group = Group.new({id: "g100", name: "Empty Group"})
         await group.save()
 
-        const relatedUsers = await group.getRelatedMany<User>("User", "group").all()
+        const relatedUsers = await group.getRelatedMany<User>("users").all()
         expect(relatedUsers).toHaveLength(0)
     })
 })

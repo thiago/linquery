@@ -1,6 +1,6 @@
 // signal-registry.ts
-import type { Model } from "./model"
-import type { ModelClass } from "./types"
+import type {Model} from "./model"
+import type {ModelClass} from "./types"
 
 /**
  * Represents the set of default model events that can occur during the lifecycle
@@ -14,10 +14,10 @@ import type { ModelClass } from "./types"
  * - "post_delete": Triggered after deleting the model.
  */
 export type DefaultModelEvent =
-  | "pre_save"
-  | "post_save"
-  | "pre_delete"
-  | "post_delete"
+    | "pre_save"
+    | "post_save"
+    | "pre_delete"
+    | "post_delete"
 
 /**
  * Represents a type alias for `ModelEvent` which can be either a `DefaultModelEvent`
@@ -48,69 +48,69 @@ export type SignalHandler<T extends Model> = (instance: T) => void | Promise<voi
  * Allows registering, removing, and emitting signals for specific model and event combinations.
  */
 export class SignalRegistry {
-  private handlers: Record<string, SignalHandler<any>[]> = {}
+    private handlers: Record<string, SignalHandler<any>[]> = {}
 
-  /**
-   * Registers an event handler for a specific event and model type.
-   *
-   * @param {ModelEvent} event - The event to listen for.
-   * @param {ModelClass<T>} model - The model class associated with the event.
-   * @param {SignalHandler<T>} handler - The callback function to handle the event.
-   * @return {void}
-   */
-  on<T extends Model>(
-    event: ModelEvent,
-    model: ModelClass<T>,
-    handler: SignalHandler<T>
-  ) {
-    const key = this._key(event, model)
-    if (!this.handlers[key]) this.handlers[key] = []
-    this.handlers[key].push(handler)
-  }
-
-  /**
-   * Removes an event handler or all handlers for a specific event and model combination.
-   *
-   * @param {ModelEvent} event - The event type to remove handlers for.
-   * @param {ModelClass<T>} model - The model associated with the event.
-   * @param {SignalHandler<T>} [handler] - The specific handler to remove. If not provided, all handlers for the event and model will be removed.
-   * @return {void} - No return value.
-   */
-  off<T extends Model>(
-    event: ModelEvent,
-    model: ModelClass<T>,
-    handler?: SignalHandler<T>
-  ) {
-    const key = this._key(event, model)
-    if (!this.handlers[key]) return
-    if (handler) {
-      this.handlers[key] = this.handlers[key].filter(h => h !== handler)
-    } else {
-      delete this.handlers[key]
+    /**
+     * Registers an event handler for a specific event and model type.
+     *
+     * @param {ModelEvent} event - The event to listen for.
+     * @param {ModelClass<T>} model - The model class associated with the event.
+     * @param {SignalHandler<T>} handler - The callback function to handle the event.
+     * @return {void}
+     */
+    on<T extends Model>(
+        event: ModelEvent,
+        model: ModelClass<T>,
+        handler: SignalHandler<T>
+    ) {
+        const key = this._key(event, model)
+        if (!this.handlers[key]) this.handlers[key] = []
+        this.handlers[key].push(handler)
     }
-  }
 
-  /**
-   * Emits an event for a specific model instance and invokes all associated handlers.
-   *
-   * @param {ModelEvent} event - The event to emit, representing a specific action or occurrence.
-   * @param {ModelClass<T>} model - The class of the model for which the event is emitted.
-   * @param {T} instance - The instance of the model related to the emitted event.
-   * @return {Promise<void>} A promise that resolves when all event handlers have been executed.
-   */
-  async emit<T extends Model>(
-    event: ModelEvent,
-    model: ModelClass<T>,
-    instance: T
-  ): Promise<void> {
-    const key = this._key(event, model)
-    const handlers = this.handlers[key] || []
-    await Promise.all(handlers.map(h => h(instance)))
-  }
+    /**
+     * Removes an event handler or all handlers for a specific event and model combination.
+     *
+     * @param {ModelEvent} event - The event type to remove handlers for.
+     * @param {ModelClass<T>} model - The model associated with the event.
+     * @param {SignalHandler<T>} [handler] - The specific handler to remove. If not provided, all handlers for the event and model will be removed.
+     * @return {void} - No return value.
+     */
+    off<T extends Model>(
+        event: ModelEvent,
+        model: ModelClass<T>,
+        handler?: SignalHandler<T>
+    ) {
+        const key = this._key(event, model)
+        if (!this.handlers[key]) return
+        if (handler) {
+            this.handlers[key] = this.handlers[key].filter(h => h !== handler)
+        } else {
+            delete this.handlers[key]
+        }
+    }
 
-  private _key(event: string, model: ModelClass<any>): string {
-    return `${event}:${model.name}`
-  }
+    /**
+     * Emits an event for a specific model instance and invokes all associated handlers.
+     *
+     * @param {ModelEvent} event - The event to emit, representing a specific action or occurrence.
+     * @param {ModelClass<T>} model - The class of the model for which the event is emitted.
+     * @param {T} instance - The instance of the model related to the emitted event.
+     * @return {Promise<void>} A promise that resolves when all event handlers have been executed.
+     */
+    async emit<T extends Model>(
+        event: ModelEvent,
+        model: ModelClass<T>,
+        instance: T
+    ): Promise<void> {
+        const key = this._key(event, model)
+        const handlers = this.handlers[key] || []
+        await Promise.all(handlers.map(h => h(instance)))
+    }
+
+    private _key(event: string, model: ModelClass<any>): string {
+        return `${event}:${model.name}`
+    }
 }
 
 /**
@@ -129,12 +129,12 @@ export const signals = new SignalRegistry()
  * @param {boolean} [log] - Optional flag indicating whether to log suppressed errors.
  * @return {SignalHandler<T>} A new signal handler function with error handling.
  */
-export function safeHandler<T extends Model>(fn: SignalHandler<T>, log:boolean=true): SignalHandler<T> {
-  return async (instance: T) => {
-    try {
-      await fn(instance)
-    } catch (err) {
-      if(log) console.warn(`[signal] handler suppressed:`, err)
+export function safeHandler<T extends Model>(fn: SignalHandler<T>, log: boolean = true): SignalHandler<T> {
+    return async (instance: T) => {
+        try {
+            await fn(instance)
+        } catch (err) {
+            if (log) console.warn(`[signal] handler suppressed:`, err)
+        }
     }
-  }
 }

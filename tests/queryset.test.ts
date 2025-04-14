@@ -39,22 +39,21 @@ describe("QuerySet", () => {
 
     it("supports orderBy", () => {
         const ordered = queryset.orderBy("-name")
-        expect((ordered as any).order).toEqual(["-name"])
+        expect((ordered as any).ordering).toEqual([{direction: "DESC", field: "name"}])
     })
 
     it("applies limit and offset via paginate", () => {
         const paginated = queryset.paginate({limit: 10, offset: 5})
-        expect((paginated as any).limitCount).toBe(10)
-        expect((paginated as any).offsetCount).toBe(5)
+        expect((paginated as any).pagination.limit).toBe(10)
+        expect((paginated as any).pagination.offset).toBe(5)
     })
 
     it("calls backend.execute with correct params", async () => {
         await queryset.filter({name: "Alice"}).orderBy("name").limit(5).execute()
         expect(backend.execute).toHaveBeenCalledWith({
-            filters: {name: "Alice"},
-            order: ["name"],
-            limit: 5,
-            offset: undefined,
+            filters: {name: {exact: "Alice"}},
+            ordering: [{field: "name", direction: "ASC"}],
+            pagination: {limit: 5},
             only: undefined,
             prefetchRelated: undefined,
             selectRelated: undefined,
@@ -63,19 +62,19 @@ describe("QuerySet", () => {
     })
 
     it("calls backend.save", async () => {
-        const item = new TestModel({id: "1", name: "SaveTest"})
+        const item = TestModel.new({id: "1", name: "SaveTest"})
         await queryset.save(item)
         expect(backend.save).toHaveBeenCalledWith(item)
     })
 
     it("calls backend.delete", async () => {
-        const item = new TestModel({id: "2", name: "DeleteTest"})
+        const item = TestModel.new({id: "2", name: "DeleteTest"})
         await queryset.delete(item)
         expect(backend.delete).toHaveBeenCalledWith(item)
     })
 
     it("returns first item if available", async () => {
-        const mockItem = new TestModel({id: "3", name: "First"})
+        const mockItem = TestModel.new({id: "3", name: "First"})
         backend.execute = vi.fn(async () => [mockItem])
         const result = await queryset.first()
         expect(result).toEqual(mockItem)
@@ -88,7 +87,7 @@ describe("QuerySet", () => {
     })
 
     it("counts the number of results", async () => {
-        backend.execute = vi.fn(async () => [1, 2, 3].map(i => new TestModel({id: `${i}`, name: `Item${i}`})))
+        backend.execute = vi.fn(async () => [1, 2, 3].map(i => TestModel.new({id: `${i}`, name: `Item${i}`})))
         const result = await queryset.count()
         expect(result).toBe(3)
     })
@@ -106,7 +105,7 @@ class Book extends Model {
         author: {type: "string"},
         pages: {type: "number"}
     }
-    static backend = new MemoryBackend<Book, Partial<Book>>()
+    static backend = new MemoryBackend<Book, Partial<Book>>(Book)
     static objects = new QuerySet(Book, Book.backend)
 }
 
@@ -161,11 +160,11 @@ describe("QuerySet.get", () => {
         expect(book.title).toBe("One")
     })
 
-    it("throws DoesNotExist if no match", async () => {
+    it("throws DoesNotExist if no filterLookup", async () => {
         await expect(Book.objects.get({id: "missing"})).rejects.toThrow(DoesNotExist)
     })
 
-    it("throws MultipleObjectsReturned if more than one match", async () => {
+    it("throws MultipleObjectsReturned if more than one filterLookup", async () => {
         await Book.objects.save(Book.new({id: "1", title: "One", author: "A", pages: 100}))
         await Book.objects.save(Book.new({id: "2", title: "One", author: "B", pages: 200}))
 

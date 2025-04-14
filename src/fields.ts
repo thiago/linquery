@@ -19,17 +19,9 @@ export function BooleanField(config: Partial<Field<boolean>> = {}): Field<boolea
 export function DateField(config: Partial<Field<Date>> = {}): Field<Date> {
     return {
         type: FieldTypeEnum.Date,
-        toInternal: v => new Date(),
+        toInternal: v => new Date(v),
         toExternal: d => d.toISOString(),
         ...config,
-    }
-}
-
-export function RelationField(model: string | ModelClass<any>, config: Partial<Field<string>> = {}): Field<string> {
-    return {
-        type: FieldTypeEnum.Relation,
-        model,
-        ...config
     }
 }
 
@@ -71,4 +63,30 @@ export function NestedField<T extends object>(model: NestedModelClass<any>, conf
         toExternal: (v) => ({...v}),
         model,
     }
+}
+
+
+export function RelationField(model: string | ModelClass<any>, config: Partial<Field<string>> = {}): Field<string> {
+  return {
+    type: FieldTypeEnum.Relation,
+    model,
+    ...config
+  }
+}
+
+export function ReverseField(model: string | ModelClass<any>, relatedName: string, config: Partial<Field<any>> = {}): Field<any> {
+  return {
+    type: FieldTypeEnum.Reverse,
+    model,
+    relatedName,
+    ...config
+  }
+}
+
+export function ManyToManyField(model: string | ModelClass<any>, config: Partial<Field<any>> = {}): Field<any> {
+  return {
+    type: FieldTypeEnum.ManyToMany,
+    model,
+    ...config
+  }
 }

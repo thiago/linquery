@@ -1,8 +1,7 @@
 import type {Dexie, Table, Version} from "dexie"
 import type {Model} from "../model"
-import {QuerySet} from "../queryset"
-import type {Filter, FilterLookup, QueryBackend, ModelClass} from "../types"
-import {match} from "../match"
+import {Filter, QueryBackend, ModelClass, ExecuteOptions, Ordering} from "../types"
+import {filterLookup} from "../filter-lookup"
 
 export const DEFAULT_DEXIE_DATABASE_KEY = "&id"
 
@@ -30,30 +29,24 @@ export class DexieBackend<T extends Model, F extends Filter> implements QueryBac
         this.table = this.db.table(options.tableName)
     }
 
-    async execute({filters = {} as F, order = [], limit, offset}: {
-        filters?: F
-        order?: string[]
-        limit?: number
-        offset?: number
-    }): Promise<T[]> {
-        let collection = this.table.toCollection().filter((item: T) => match(item, filters))
+    async execute({filters = {} as F, ordering = [], pagination}: ExecuteOptions<F>): Promise<T[]> {
+        let collection = this.table.toCollection().filter((item: T) => filterLookup(item, filters))
 
-        if (offset) {
-            collection = collection.offset(offset)
+        if (pagination?.offset) {
+            collection = collection.offset(pagination.offset)
         }
 
-        if (limit !== undefined) {
-            collection = collection.limit(limit)
+        if (pagination?.limit) {
+            collection = collection.limit(pagination.limit)
         }
 
         let results = await collection.toArray()
 
-        if (order.length > 0) {
-            results = results.sort((a: any, b: any) => {
-                for (const key of order) {
-                    const dir = key.startsWith("-") ? -1 : 1
-                    const k = key.replace(/^-/, "")
-                    const cmp = a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0
+        if (ordering.length > 0) {
+            results.sort((a: any, b: any) => {
+                for (const key of ordering) {
+                    const dir = key.direction === Ordering.DESC ? -1 : 1
+                    const cmp = a[key.field] > b[key.field] ? 1 : a[key.field] < b[key.field] ? -1 : 0
                     if (cmp !== 0) return cmp * dir
                 }
                 return 0
@@ -75,4 +68,4 @@ export class DexieBackend<T extends Model, F extends Filter> implements QueryBac
 }
 
 
-// dexie-match.ts
+// dexie-filter-lookup.ts

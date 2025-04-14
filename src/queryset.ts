@@ -1,5 +1,13 @@
-import {isModelClass, Model} from "./model"
-import type {ExecuteOptions, ModelClass, QueryBackend} from "./types";
+import {Model} from "./model"
+import {
+    ExecuteOptions,
+    FieldTypeEnum,
+    ModelClass, ModelClassConstructor,
+    OrderBy,
+    Ordering,
+    Pagination, PrefetchInput,
+    QueryBackend, RelatedPrefetchOptions
+} from "./types";
 import {DoesNotExist, MultipleObjectsReturned} from "./errors"
 
 /**
@@ -33,24 +41,13 @@ export class QuerySet<T extends Model, F> {
      * This object can be used to store specific filtering criteria or
      * configurations that determine a subset of data based on a set of rules.
      */
-    private filters: F = {} as F
+    private filters?: F
     /**
      * Represents an array containing the order of elements or items.
      * This variable is used to maintain and manage the sequence in which items are stored or processed.
      */
-    private order: string[] = []
-    /**
-     * Represents an optional numeric value that specifies the limit or maximum count allowed.
-     * It determines the upper boundary for a certain operation or process.
-     * If not provided, no specific limit may be enforced.
-     */
-    private limitCount?: number
-    /**
-     * Represents the numerical offset used for calculations or adjustments.
-     * It is an optional property and can be undefined.
-     * If provided, it should be a number indicating the offset value.
-     */
-    private offsetCount?: number
+    private ordering?: OrderBy[]
+    private pagination?: Pagination
     /**
      * An optional array of strings that specifies field names.
      * This variable is typically used to denote a subset of specific fields
@@ -77,7 +74,7 @@ export class QuerySet<T extends Model, F> {
      * @typedef {string[]} prefetchRelatedFields
      *   Array of field names to be prefetched.
      */
-    private prefetchRelatedFields?: string[]
+    private prefetchRelatedFields?: Record<string, RelatedPrefetchOptions | boolean>
     /**
      * Represents an optional record object that maps string keys to QuerySet instances.
      * Each key in the record corresponds to a related query set associated with a specific entity or context.
@@ -116,7 +113,7 @@ export class QuerySet<T extends Model, F> {
      * @param {QueryBackend<T, F>} backend - The backend instance for query execution.
      */
     // constructor(modelClass: ModelClass<T>, backend: QueryBackend<T, F>) {
-    constructor(modelClass: new (data: any) => T, backend: QueryBackend<T, F>) {
+    constructor(modelClass: ModelClassConstructor<T>, backend: QueryBackend<T, F>) {
         this.modelClass = modelClass as ModelClass<T>
         this.backend = backend
     }
@@ -133,14 +130,20 @@ export class QuerySet<T extends Model, F> {
         ) => QuerySet<T, F>
 
         const newInstance = new Ctor(this.modelClass, this.backend)
-        newInstance.filters = {...this.filters}
-        newInstance.order = [...this.order]
-        newInstance.limitCount = this.limitCount
-        newInstance.offsetCount = this.offsetCount
-        newInstance.onlyFields = this.onlyFields
-        newInstance.selectRelatedFields = this.selectRelatedFields
-        newInstance.prefetchRelatedFields = this.prefetchRelatedFields
-        newInstance.relatedQuerySets = {...this.relatedQuerySets}
+
+        newInstance.filters = {...(this.filters ?? {})} as F
+        newInstance.ordering = [...(this.ordering ?? [])]
+        newInstance.pagination = this.pagination ? {...this.pagination} : undefined
+        newInstance.onlyFields = this.onlyFields ? [...this.onlyFields] : undefined
+        newInstance.selectRelatedFields = this.selectRelatedFields ? [...this.selectRelatedFields] : undefined
+        newInstance.prefetchRelatedFields = this.prefetchRelatedFields ? {...this.prefetchRelatedFields} : undefined
+
+        if (this.relatedQuerySets) {
+            newInstance.relatedQuerySets = {}
+            for (const [key, qs] of Object.entries(this.relatedQuerySets)) {
+                newInstance.relatedQuerySets[key] = qs.clone()
+            }
+        }
 
         return newInstance
     }
@@ -166,7 +169,7 @@ export class QuerySet<T extends Model, F> {
      */
     exclude(filters: F): QuerySet<T, F> {
         const clone = this.clone()
-        clone.filters = {...this.filters, NOT: filters}
+        clone.filters = {...this.filters, NOT: filters} as F
         return clone
     }
 
@@ -176,9 +179,18 @@ export class QuerySet<T extends Model, F> {
      * @param {string[]} fields - The fields to order the query set by. Order of fields determines sorting precedence.
      * @return {QuerySet<T, F>} A new query set instance ordered by the specified fields.
      */
-    orderBy(...fields: string[]): QuerySet<T, F> {
+    orderBy(...fields: (string | OrderBy)[]): QuerySet<T, F> {
         const clone = this.clone()
-        clone.order = fields
+        clone.ordering = fields.map(field => {
+            if (typeof field === "string") {
+                const isDesc = field.startsWith("-")
+                return {
+                    field: isDesc ? field.slice(1) : field,
+                    direction: isDesc ? Ordering.DESC : Ordering.ASC,
+                }
+            }
+            return field
+        })
         return clone
     }
 
@@ -190,23 +202,13 @@ export class QuerySet<T extends Model, F> {
      */
     limit(n: number): QuerySet<T, F> {
         const clone = this.clone()
-        clone.limitCount = n
+        clone.pagination = {...this.pagination, limit: n}
         return clone
     }
 
-    /**
-     * Paginates the query set by setting a limit on the number of records to retrieve
-     * and an optional offset to skip a certain number of records.
-     *
-     * @param {Object} params - An object containing pagination parameters.
-     * @param {number} params.limit - The maximum number of records to retrieve.
-     * @param {number} [params.offset] - Optional. The number of records to skip before starting to retrieve results.
-     * @return {QuerySet<T, F>} A new QuerySet instance with the applied pagination settings.
-     */
-    paginate({limit, offset}: { limit: number; offset?: number }): QuerySet<T, F> {
+    paginate(pagination: Pagination): QuerySet<T, F> {
         const clone = this.clone()
-        clone.limitCount = limit
-        clone.offsetCount = offset
+        clone.pagination = {...this.pagination, ...pagination}
         return clone
     }
 
@@ -241,10 +243,50 @@ export class QuerySet<T extends Model, F> {
      * @param {...string} fields - A list of strings representing the related fields to prefetch.
      * @return {QuerySet<T, F>} A cloned instance of the QuerySet with the specified related fields prefetched.
      */
-    prefetchRelated(...fields: string[]): QuerySet<T, F> {
+    prefetchRelated(...fields: PrefetchInput): QuerySet<T, F> {
         const clone = this.clone()
-        clone.prefetchRelatedFields = fields
+        clone.prefetchRelatedFields ??= {}
+        const fieldDefs = this.modelClass.getFields?.() || {}
+
+        for (const field of fields) {
+            if (typeof field === "string") {
+                clone.prefetchRelatedFields[field] = true
+                continue
+            }
+
+            for (const [key, options] of Object.entries(field)) {
+                if (!fieldDefs[key]) continue
+                clone.prefetchRelatedFields[key] = options ?? true
+            }
+        }
+
         return clone
+    }
+
+    private normalizeFilter(input: any): any {
+        if (!input || typeof input !== "object") return input
+
+        const output: any = {}
+
+        for (const [key, value] of Object.entries(input)) {
+            if (["OR", "AND", "NOT"].includes(key) && typeof value === "object") {
+                output[key] = this.normalizeFilter(value)
+                continue
+            }
+
+            // null, string, number, boolean, array → assume exact
+            if (
+                value === null ||
+                typeof value !== "object" ||
+                Array.isArray(value)
+            ) {
+                output[key] = {exact: value}
+            } else {
+                output[key] = value // already a lookup object
+            }
+        }
+
+        return output
     }
 
     /**
@@ -259,55 +301,72 @@ export class QuerySet<T extends Model, F> {
      * depends on the configuration (e.g., `valuesListFields`, `valuesListFlat`) and the raw data retrieved
      * from the backend.
      */
-    async execute(): Promise<any[]> {
+    async execute(): Promise<Array<T> | Array<any> | Array<any[]>> {
         const options: ExecuteOptions<F> = {
-            filters: this.filters,
-            order: this.order,
-            limit: this.limitCount,
-            offset: this.offsetCount,
+            filters: this.normalizeFilter(this.filters),
+            ordering: this.ordering,
+            pagination: this.pagination,
             only: this.onlyFields,
             selectRelated: this.selectRelatedFields,
             prefetchRelated: this.prefetchRelatedFields,
-            relatedQuerySets: {},
+            relatedQuerySets: {}
         }
 
         const fields = this.modelClass.getFields?.() ?? {}
+        const registry = this.modelClass.registry
 
-        if (this.selectRelatedFields) {
-            for (const fieldName of this.selectRelatedFields) {
-                const field = fields[fieldName]
-                if (!field || field.type !== "relation" || !field.model) continue
+        // SELECT RELATED (FK, OneToOne)
+        for (const fieldName of this.selectRelatedFields ?? []) {
+            const field = fields[fieldName]
+            if (!field || field.type !== FieldTypeEnum.Relation || !field.model) continue
 
-                const RelatedModel = typeof field.model === 'string' ? this.modelClass.registry.get(field.model) : field.model as ModelClass<any>
-                if (!RelatedModel) continue
+            const RelatedModel = typeof field.model === "string"
+                ? registry.get(field.model)
+                : field.model as ModelClass<any>
 
+            if (RelatedModel) {
                 options.relatedQuerySets![fieldName] = RelatedModel.objects
             }
         }
 
-        if (this.prefetchRelatedFields) {
-            for (const fieldName of this.prefetchRelatedFields) {
-                const reverseModel = this.modelClass.registry.get(fieldName)
-                if (!reverseModel) continue
+        // PREFETCH RELATED (ReverseField or many-to-many)
+        for (const [fieldName, config] of Object.entries(this.prefetchRelatedFields ?? {})) {
+            const field = fields[fieldName]
+            if (!field || !(field.type === FieldTypeEnum.Reverse || field.type === FieldTypeEnum.ManyToMany) || !field.model) continue
 
-                options.relatedQuerySets![fieldName] = reverseModel.objects
+            const relatedModel = typeof field.model === "string"
+                ? registry.get(field.model)
+                : field.model as ModelClass<any>
+
+            if (!relatedModel) continue
+            let qs = relatedModel.objects
+            if (typeof config !== "boolean") {
+                if (config.filters) qs = qs.filter(config.filters)
+                if (config.ordering) qs = qs.orderBy(...config.ordering)
+                if (config.only) qs = qs.only(...config.only)
+                if (config.pagination) qs = qs.paginate(config.pagination)
+                if (config.exclude) qs = qs.exclude(config.exclude)
             }
+
+            options.relatedQuerySets![fieldName] = qs
         }
 
-        const rawResults = await this.backend.execute(options)
+        // Execute backend
+        let results = await this.backend.execute(options)
 
+        // valuesList (aplicado após o fetch)
         if (this.valuesListFields) {
             if (this.valuesListFlat && this.valuesListFields.length === 1) {
                 const field = this.valuesListFields[0]
-                return rawResults.map(item => item[field as keyof T])
+                return results.map(item => (item as any)[field])
             }
 
-            return rawResults.map(item =>
-                this.valuesListFields!.map(f => item[f as keyof T])
+            return results.map(item =>
+                this.valuesListFields!.map(f => (item as any)[f])
             )
         }
 
-        return rawResults
+        return results
     }
 
     /**
@@ -315,7 +374,7 @@ export class QuerySet<T extends Model, F> {
      *
      * @return {Promise<T[]>} A promise that resolves to an array of items of type T.
      */
-    async all(): Promise<T[]> {
+    async all(): Promise<Array<T> | Array<any> | Array<any[]>> {
         return this.execute()
     }
 
@@ -394,7 +453,7 @@ export class QuerySet<T extends Model, F> {
 
     /**
      * Fetches a single object from the database based on the provided filters.
-     * Throws an error if no objects or multiple objects match the filters.
+     * Throws an error if no objects or multiple objects filterLookup the filters.
      *
      * @param {F} filters - The filters to apply in the database query to retrieve the object.
      * @return {Promise<T>} A promise that resolves with the single object matching the filters.
