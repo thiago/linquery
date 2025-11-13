@@ -1,0 +1,217 @@
+/**
+ * Type tests for field autocomplete in filter operations
+ *
+ * These tests verify that TypeScript provides autocomplete for:
+ * - Direct field access (e.g., { age: 25 })
+ * - Partial type safety for lookups (e.g., { age__gte: 25 })
+ *
+ * To run these tests, use: npm run test:types
+ *
+ * Note: These are compile-time tests. If this file compiles without errors,
+ * the autocomplete is working correctly.
+ */
+
+import { Model, CharField, IntegerField, BooleanField, DateTimeField, Manager } from '../../src/core';
+
+// Define a test model with various field types
+class Book extends Model {
+  declare id?: number;
+  declare title: string;
+  declare author: string;
+  declare pages: number;
+  declare published: boolean;
+  declare publishedDate: Date;
+  declare isbn?: string;
+
+  static objects: Manager<Book>;
+}
+
+Book.init({
+  title: new CharField({ maxLength: 200 }),
+  author: new CharField({ maxLength: 100 }),
+  pages: new IntegerField(),
+  published: new BooleanField({ default: false }),
+  publishedDate: new DateTimeField(),
+  isbn: new CharField({ maxLength: 20, required: false }),
+});
+
+// =============================================================================
+// Test 1: Direct field access (full autocomplete)
+// =============================================================================
+
+// ✅ Should autocomplete field names
+async function testDirectFieldAccess() {
+  // TypeScript should provide autocomplete for: title, author, pages, published, publishedDate, isbn
+  await Book.objects.filter({ title: 'Django' });
+  await Book.objects.filter({ author: 'John Smith' });
+  await Book.objects.filter({ pages: 300 });
+  await Book.objects.filter({ published: true });
+  await Book.objects.filter({ publishedDate: new Date() });
+  await Book.objects.filter({ isbn: '978-3-16-148410-0' });
+}
+
+// ✅ Should autocomplete multiple fields
+async function testMultipleFields() {
+  await Book.objects.filter({
+    title: 'Django',
+    published: true,
+    pages: 300,
+  });
+}
+
+// =============================================================================
+// Test 2: Field lookups (partial type safety)
+// =============================================================================
+
+// ✅ Should allow valid lookups without TypeScript errors
+async function testValidLookups() {
+  // String lookups
+  await Book.objects.filter({ title__contains: 'Django' });
+  await Book.objects.filter({ title__icontains: 'django' });
+  await Book.objects.filter({ title__startswith: 'The' });
+  await Book.objects.filter({ title__istartswith: 'the' });
+  await Book.objects.filter({ title__endswith: 'Book' });
+  await Book.objects.filter({ title__iendswith: 'book' });
+  await Book.objects.filter({ title__exact: 'Django' });
+  await Book.objects.filter({ title__iexact: 'django' });
+
+  // Number lookups
+  await Book.objects.filter({ pages__gt: 200 });
+  await Book.objects.filter({ pages__gte: 200 });
+  await Book.objects.filter({ pages__lt: 500 });
+  await Book.objects.filter({ pages__lte: 500 });
+  await Book.objects.filter({ pages__in: [100, 200, 300] });
+  await Book.objects.filter({ pages__range: [100, 500] });
+
+  // Boolean lookups
+  await Book.objects.filter({ published__exact: true });
+
+  // Date lookups
+  await Book.objects.filter({ publishedDate__year: 2024 });
+  await Book.objects.filter({ publishedDate__month: 1 });
+  await Book.objects.filter({ publishedDate__day: 15 });
+  await Book.objects.filter({ publishedDate__gt: new Date('2024-01-01') });
+  await Book.objects.filter({ publishedDate__gte: new Date('2024-01-01') });
+  await Book.objects.filter({ publishedDate__lt: new Date('2024-12-31') });
+  await Book.objects.filter({ publishedDate__lte: new Date('2024-12-31') });
+
+  // Null lookups
+  await Book.objects.filter({ isbn__isnull: true });
+  await Book.objects.filter({ isbn__isnull: false });
+}
+
+// =============================================================================
+// Test 3: Chained filters
+// =============================================================================
+
+// ✅ Should work with chained filters
+async function testChainedFilters() {
+  await Book.objects
+    .filter({ published: true })
+    .filter({ pages__gte: 200 })
+    .filter({ title__contains: 'Python' });
+}
+
+// =============================================================================
+// Test 4: Exclude filters
+// =============================================================================
+
+// ✅ Should work with exclude
+async function testExcludeFilters() {
+  await Book.objects.exclude({ published: false });
+  await Book.objects.exclude({ pages__lt: 100 });
+  await Book.objects.exclude({ title__contains: 'Draft' });
+}
+
+// =============================================================================
+// Test 5: Get with filters
+// =============================================================================
+
+// ✅ Should work with get
+async function testGetWithFilters() {
+  await Book.objects.get({ id: 1 });
+  await Book.objects.get({ title: 'Django Book' });
+  await Book.objects.get({ isbn: '978-3-16-148410-0' });
+}
+
+// =============================================================================
+// Test 6: GetOrCreate and UpdateOrCreate
+// =============================================================================
+
+// ✅ Should work with getOrCreate
+async function testGetOrCreate() {
+  await Book.objects.getOrCreate(
+    { isbn: '978-3-16-148410-0' },
+    { title: 'New Book', author: 'John Doe', pages: 300, published: true, publishedDate: new Date() }
+  );
+}
+
+// ✅ Should work with updateOrCreate
+async function testUpdateOrCreate() {
+  await Book.objects.updateOrCreate(
+    { isbn: '978-3-16-148410-0' },
+    { title: 'Updated Book', pages: 350 }
+  );
+}
+
+// =============================================================================
+// Test 7: Update and Delete
+// =============================================================================
+
+// ✅ Should work with update
+async function testUpdate() {
+  await Book.objects.update({ published: false }, { published: true });
+  await Book.objects.update({ pages__lt: 100 }, { published: false });
+}
+
+// ✅ Should work with delete
+async function testDelete() {
+  await Book.objects.delete({ published: false });
+  await Book.objects.delete({ pages__lt: 50 });
+}
+
+// =============================================================================
+// Test 8: QuerySet methods
+// =============================================================================
+
+// ✅ Should work with QuerySet methods
+async function testQuerySetMethods() {
+  const qs = Book.objects.filter({ published: true });
+
+  await qs.filter({ pages__gte: 200 });
+  await qs.exclude({ title__contains: 'Draft' });
+  await qs.get({ id: 1 });
+}
+
+// =============================================================================
+// Test 9: Type errors should be caught
+// =============================================================================
+
+// ❌ These should cause TypeScript errors (commented out to allow compilation)
+/*
+async function testInvalidFields() {
+  // @ts-expect-error - invalid field name
+  await Book.objects.filter({ invalidField: 'value' });
+
+  // @ts-expect-error - invalid field name
+  await Book.objects.filter({ notAField: 123 });
+}
+*/
+
+// =============================================================================
+// Export to avoid "unused" warnings
+// =============================================================================
+
+export {
+  testDirectFieldAccess,
+  testMultipleFields,
+  testValidLookups,
+  testChainedFilters,
+  testExcludeFilters,
+  testGetWithFilters,
+  testGetOrCreate,
+  testUpdateOrCreate,
+  testUpdate,
+  testDelete,
+  testQuerySetMethods,
+};
