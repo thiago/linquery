@@ -123,69 +123,69 @@ const posts = await Post.objects
 const authorPosts = await author.post_set.all().toArray();
 ```
 
-### 3. Offline-First with Sync
+### 3. Offline-First Support
 
-✅ **Implemented** - Full offline-first synchronization with conflict resolution.
+✅ **Implemented** - Two complementary adapters for offline-first applications.
+
+#### CachedAdapter - Fast UI with Background Updates
+
+Perfect for mobile apps and PWAs that need instant UI responses with background data synchronization.
+
+```typescript
+import { CachedAdapter, MemoryAdapter, GraphQLAdapter } from 'linquery';
+
+// Create cached adapter with configurable strategies
+const cachedAdapter = new CachedAdapter({
+  cache: new MemoryAdapter(),  // Or DexieAdapter for IndexedDB
+  remote: new GraphQLAdapter({ endpoint: '/graphql' }),
+  readStrategy: 'cache-then-network',  // Return cache, update in background
+  writeStrategy: 'network-first',      // Try network first, queue if offline
+  enableOfflineQueue: true,
+  isOnline: () => navigator.onLine,
+});
+
+// Listen to cache events
+cachedAdapter.signals.cacheHit.connect((sender, event) => {
+  console.log('Serving from cache:', event.model);
+});
+
+cachedAdapter.signals.cacheUpdated.connect((sender, event) => {
+  console.log('Cache updated from network:', event.model);
+  // Update UI with fresh data
+});
+
+// Works offline automatically
+const post = await Post.objects.create({
+  title: 'Offline post',
+  content: 'Queued for sync when online'
+});
+```
+
+#### SyncAdapter - Bidirectional Sync with Conflict Resolution
+
+Best for collaborative apps and multi-device synchronization.
 
 ```typescript
 import { SyncAdapter, MemoryAdapter, GraphQLAdapter } from 'linquery';
 
-// Create sync adapter with local and remote backends
+// Create sync adapter for bidirectional sync
 const syncAdapter = new SyncAdapter({
-  local: new MemoryAdapter(),  // Or DexieAdapter for IndexedDB
+  local: new MemoryAdapter(),
   remote: new GraphQLAdapter({ endpoint: '/graphql' }),
   syncStrategy: 'last-write-wins',  // or 'local-wins', 'remote-wins', 'custom'
   autoSync: true,
-  syncInterval: 30000,  // Sync every 30 seconds
-  retryAttempts: 3,
-  retryDelay: 1000,
+  syncInterval: 30000,
 });
 
-class Post extends Model {
-  declare id?: number;
-  declare title: string;
-  declare content: string;
-
-  static objects: Manager<Post>;
-}
-
-Post.init({
-  title: new CharField({ maxLength: 200 }),
-  content: new CharField({ maxLength: 5000 }),
-});
-
-(Post as any).setAdapter(syncAdapter);
-Post.objects = new Manager(Post, syncAdapter);
-
-// Register model for sync
+// Register models for sync
 syncAdapter.registerModel(Post);
 
-await syncAdapter.connect();
-
-// Works offline automatically - operations are queued
-const post = await Post.objects.create({
-  title: 'Offline post',
-  content: 'This works even offline!'
-});
-
-// Push local changes to remote
-await syncAdapter.push();
-
-// Pull remote changes to local
-await syncAdapter.pull();
-
-// Bidirectional sync (pull then push)
-await syncAdapter.sync();
+// Bidirectional sync
+await syncAdapter.sync();  // Pull then push
 
 // Monitor sync status
 const stats = syncAdapter.getQueueStats();
 console.log(`Pending: ${stats.pending}, Synced: ${stats.synced}`);
-
-// Handle failed operations
-const failed = syncAdapter.getFailedOperations();
-if (failed.length > 0) {
-  await syncAdapter.retryFailed();
-}
 ```
 
 ### 4. Signals
@@ -228,12 +228,12 @@ signal(SignalType.SYNC_CONFLICT).connect(
 │    Backend Adapter Interface        │
 └──────────────┬──────────────────────┘
                │
-      ┌────────┼────────┐
-      │        │         │
- ┌────▼───┐┌──▼───┐┌───▼────┐
- │GraphQL ││Memory││Dexie   │
- │Adapter ││Adapter││Adapter │
- └────────┘└──────┘└────────┘
+    ┌──────────┼──────────┬──────────┐
+    │          │           │          │
+┌───▼────┐┌───▼────┐┌────▼───┐┌────▼─────┐
+│Memory  ││GraphQL ││Cached  ││Sync      │
+│Adapter ││Adapter ││Adapter ││Adapter   │
+└────────┘└────────┘└────────┘└──────────┘
 ```
 
 ## Documentation
@@ -247,6 +247,7 @@ signal(SignalType.SYNC_CONFLICT).connect(
 - [Adapters](./docs/ADAPTERS.md) - Building and using adapters
 - [GraphQL Adapter Design](./docs/GRAPHQL_ADAPTER_DESIGN.md) - GraphQL adapter architecture
 - [GraphQL Adapter Examples](./docs/GRAPHQL_ADAPTER_EXAMPLES.md) - Customization examples (Hasura, etc.)
+- [Cached Adapter](./docs/CACHED_ADAPTER.md) - Offline-first with cache strategies
 - [Relationships Design](./docs/RELATIONSHIPS_DESIGN.md) - Relationship implementation details
 - [Signals](./docs/SIGNALS.md) - Event system guide
 - [Sync & Offline](./docs/SYNC.md) - Offline-first patterns
@@ -259,7 +260,7 @@ signal(SignalType.SYNC_CONFLICT).connect(
 - [Type Assertions](./docs/TYPE_ASSERTIONS.md) - Understanding `as any` usage
 
 ### Project
-- [Roadmap](./docs/ROADMAP.md) - Development phases
+- [Roadmap](./ROADMAP.md) - Development phases
 - [Progress Summary](./docs/PROGRESS_SUMMARY.md) - Current project status and achievements
 
 ## Installation
@@ -273,46 +274,43 @@ npm install @linquery/adapter-dexie
 npm install @linquery/adapter-postgres
 ```
 
-## Comparison with Django ORM
-
-| Feature | Django ORM | Linquery |
-|---------|-----------|---------|
-| QuerySets | ✅ | ✅ |
-| Field Lookups | ✅ | ✅ |
-| Relationships | ✅ | ✅ |
-| Signals | ✅ | ✅ |
-| Migrations | ✅ | Backend-specific |
-| Transactions | ✅ | Backend-specific |
-| Cross-Database | ❌ | ✅ (Cross-Adapter) |
-| Offline-First | ❌ | ✅ |
-| Type Safety | ❌ | ✅ (TypeScript) |
-
 ## Project Status
 
-✅ **Phase 1-5 Complete!** - Core ORM, Relationships, Signals, GraphQL Adapter, and Offline-First Sync fully implemented.
+🚀 **Alpha Release (v0.2.0)** - Phase 1-5 Complete!
 
-- ✅ **245 tests passing** (85% code coverage)
-- ✅ **2 adapters** (MemoryAdapter, GraphQLAdapter)
-- ✅ **SyncAdapter** (Offline-first with bi-directional sync)
-- ✅ **18 field lookups** implemented
-- ✅ **Relationships** (ForeignKey, OneToOne, select_related, prefetch_related)
-- ✅ **Signal system** (lifecycle hooks + sync events)
-- ✅ **Conflict resolution** (last-write-wins, local-wins, remote-wins, custom)
-- ✅ **Operation queue** with retry mechanism
-- ✅ **Type-safe** with TypeScript strict mode
-- 🚀 **Production ready** - Comprehensive test coverage and documentation
+Core features fully implemented and production-ready:
 
-See [ROADMAP.md](./docs/ROADMAP.md) for complete features and timeline.
+- ✅ **4 Adapters Available**
+  - MemoryAdapter (in-memory storage)
+  - GraphQLAdapter (extensible with 3 customization levels)
+  - CachedAdapter (offline-first with cache strategies)
+  - SyncAdapter (bidirectional sync with conflict resolution)
+- ✅ **Complete ORM Features**
+  - QuerySets with chainable API
+  - 18 field lookups (__gt, __contains, __in, etc.)
+  - Relationships (ForeignKey, OneToOne)
+  - Lazy and eager loading (select_related, prefetch_related)
+  - Signal system (lifecycle hooks + sync events)
+- ✅ **Offline-First Capabilities**
+  - Configurable cache strategies
+  - Operation queue with retry
+  - Conflict resolution strategies
+  - Background sync
+- ✅ **TypeScript Support**
+  - Strict mode enabled
+  - Full type inference
+  - Field autocomplete
+
+See [ROADMAP.md](./ROADMAP.md) for complete features and timeline.
 
 ## Philosophy
 
-Linquery follows these principles:
+Linquery is inspired by Django ORM and follows these principles:
 
-1. **Django-inspired**: If you know Django ORM, you'll feel at home
-2. **Backend Agnostic**: Your data layer shouldn't dictate your data source
-3. **Offline-First**: Modern apps need to work without connectivity
-4. **Type-Safe**: Leverage TypeScript for better DX and fewer bugs
-5. **Extensible**: Easy to add new adapters, fields, and behaviors
+1. **Backend Agnostic**: Your data layer shouldn't dictate your data source
+2. **Offline-First**: Modern apps need to work without connectivity
+3. **Type-Safe**: Leverage TypeScript for better DX and fewer bugs
+4. **Extensible**: Easy to add new adapters, fields, and behaviors
 
 ## License
 
@@ -324,4 +322,4 @@ Contributions are welcome! Please read our contributing guidelines (coming soon)
 
 ## Credits
 
-Inspired by Django ORM, TypeORM, Prisma, and the broader JavaScript ecosystem.
+Inspired by Django ORM and built for the TypeScript ecosystem.
