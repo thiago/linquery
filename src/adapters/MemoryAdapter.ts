@@ -313,13 +313,103 @@ export class MemoryAdapter implements BackendAdapter {
   }
 
   /**
+   * Get a single record by ID
+   */
+  async get<T>(model: ModelClass<T>, id: unknown): Promise<T | null> {
+    const tableName = this.getTableName(model);
+    const table = this.getTable(tableName);
+    const record = table.get(id as string | number);
+
+    if (!record) {
+      return null;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (model as any).fromDB?.(record) ?? (new model(record) as T);
+  }
+
+  /**
+   * List records with advanced query plan
+   */
+  async list<T>(model: ModelClass<T>, plan: QueryPlan): Promise<T[]> {
+    const tableName = this.getTableName(model);
+    const table = this.getTable(tableName);
+    let results: T[] = [];
+
+    // Apply filters
+    for (const record of table.values()) {
+      let matches = true;
+
+      // Check all filters
+      for (const filter of plan.filters || []) {
+        if (!this.matchesLookup(record[filter.field], filter.lookup, filter.value)) {
+          matches = false;
+          break;
+        }
+      }
+
+      if (matches) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const instance = (model as any).fromDB?.(record) ?? (new model(record) as T);
+        results.push(instance);
+      }
+    }
+
+    // Apply ordering
+    if (plan.ordering && plan.ordering.length > 0) {
+      results.sort((a, b) => {
+        for (const order of plan.ordering) {
+          const aVal = (a as Record<string, unknown>)[order.field];
+          const bVal = (b as Record<string, unknown>)[order.field];
+
+          let comparison = 0;
+          if (aVal != null && bVal != null) {
+            if (aVal < bVal) comparison = -1;
+            else if (aVal > bVal) comparison = 1;
+          }
+
+          if (comparison !== 0) {
+            return order.direction === 'desc' ? -comparison : comparison;
+          }
+        }
+        return 0;
+      });
+    }
+
+    // Apply offset and limit
+    if (plan.offset) {
+      results = results.slice(plan.offset);
+    }
+    if (plan.limit) {
+      results = results.slice(0, plan.limit);
+    }
+
+    return results;
+  }
+
+  /**
    * Count records matching query
    */
-  async count<T>(model: ModelClass<T>, _query: QueryPlan<T>): Promise<number> {
+  async count<T>(model: ModelClass<T>, _query: QueryPlan): Promise<number> {
     // For now, just count all matching records
     // TODO: Use query filters
     const results = await this.find(model, {});
     return results.length;
+  }
+
+  /**
+   * Execute raw query (not supported in memory adapter)
+   */
+  async executeRaw<T>(_model: ModelClass<T>, _query: string | object, _params?: unknown[]): Promise<T[]> {
+    throw new Error('executeRaw is not supported by MemoryAdapter');
+  }
+
+  /**
+   * Compile filter to backend-specific format (no-op for memory adapter)
+   */
+  compileFilter(filter: Record<string, unknown>): any {
+    // For memory adapter, just return the filter as-is
+    return filter;
   }
 
   /**

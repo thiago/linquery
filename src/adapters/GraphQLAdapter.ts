@@ -564,7 +564,33 @@ export class GraphQLAdapter implements BackendAdapter {
     await this.executeGraphQL(query, variables);
   }
 
-  async count<T>(model: ModelClass<T>, query: QueryPlan<T>): Promise<number> {
+  /**
+   * Get a single record by ID
+   */
+  async get<T>(model: ModelClass<T>, id: unknown): Promise<T | null> {
+    const results = await this.find(model, { id });
+    return results.length > 0 ? results[0]! : null;
+  }
+
+  /**
+   * List records with query plan
+   */
+  async list<T>(model: ModelClass<T>, plan: QueryPlan): Promise<T[]> {
+    // Convert QueryPlan filters to simple filter object
+    const filters: Record<string, unknown> = {};
+    for (const filter of plan.filters || []) {
+      // Simple exact match for now
+      if (filter.lookup === 'exact') {
+        filters[filter.field] = filter.value;
+      } else {
+        // Use Django-style lookup syntax
+        filters[`${filter.field}__${filter.lookup}`] = filter.value;
+      }
+    }
+    return this.find(model, filters);
+  }
+
+  async count<T>(model: ModelClass<T>, query: QueryPlan): Promise<number> {
     const queryName = this.getQueryName('list', model);
 
     const graphqlFilters = this.buildFiltersVariable(query.filters);

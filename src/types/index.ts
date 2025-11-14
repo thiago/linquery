@@ -274,9 +274,13 @@ export interface BackendAdapter {
   update<T>(model: ModelClass<T>, filters: Record<string, unknown>, data: Record<string, unknown>): Promise<void>;
   delete<T>(model: ModelClass<T>, filters: Record<string, unknown>): Promise<void>;
 
-  // Query operations
-  count?<T>(model: ModelClass<T>, query: QueryPlan<T>): Promise<number>;
-  exists?<T>(model: ModelClass<T>, query: QueryPlan<T>): Promise<boolean>;
+  // Single record operations
+  get<T>(model: ModelClass<T>, id: unknown): Promise<T | null>;
+
+  // Advanced query operations
+  list<T>(model: ModelClass<T>, plan: QueryPlan): Promise<T[]>;
+  count<T>(model: ModelClass<T>, query: QueryPlan): Promise<number>;
+  exists?<T>(model: ModelClass<T>, query: QueryPlan): Promise<boolean>;
 
   // Bulk operations
   bulkCreate?<T>(model: ModelClass<T>, items: Record<string, unknown>[]): Promise<T[]>;
@@ -285,6 +289,12 @@ export interface BackendAdapter {
 
   // Transaction support
   transaction?<T>(callback: () => Promise<T>): Promise<T>;
+
+  // Raw query execution
+  executeRaw?<T>(model: ModelClass<T>, query: string | object, params?: unknown[]): Promise<T[]>;
+
+  // Filter compilation
+  compileFilter?(filter: Record<string, unknown>): CompiledFilter;
 }
 
 // Signal types (SignalHandler is now in src/core/Signal.ts)

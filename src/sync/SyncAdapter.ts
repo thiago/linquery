@@ -2,7 +2,7 @@
  * SyncAdapter - Offline-first adapter with sync capabilities
  */
 
-import type { BackendAdapter, ModelClass } from '../types';
+import type { BackendAdapter, ModelClass, QueryPlan } from '../types';
 import { OperationQueue, type OperationQueueOptions } from './OperationQueue';
 import { ConnectivityManager, type ConnectivityManagerOptions } from './ConnectivityManager';
 import { SyncEngine, type SyncStrategy, type ConflictResolver, type SyncResult } from './SyncEngine';
@@ -185,6 +185,27 @@ export class SyncAdapter implements BackendAdapter {
     const results = await this.local.find(model, filters);
     // Ensure we always return an array
     return Array.isArray(results) ? results : [results];
+  }
+
+  /**
+   * Get a single record by ID
+   */
+  async get<T>(model: ModelClass<T>, id: unknown): Promise<T | null> {
+    return await this.local.get(model, id);
+  }
+
+  /**
+   * List records with query plan
+   */
+  async list<T>(model: ModelClass<T>, plan: QueryPlan): Promise<T[]> {
+    return await this.local.list(model, plan);
+  }
+
+  /**
+   * Count records matching query plan
+   */
+  async count<T>(model: ModelClass<T>, query: QueryPlan): Promise<number> {
+    return await this.local.count(model, query);
   }
 
   /**
