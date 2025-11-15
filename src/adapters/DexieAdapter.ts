@@ -299,11 +299,13 @@ export class DexieAdapter implements BackendAdapter {
     const table = this.db.table(tableName);
 
     // Simple exact match filters
-    const records = await table.filter((record: any) => {
-      return Object.entries(filters).every(([key, value]) => {
-        return record[key] === value;
-      });
-    }).toArray();
+    const records = await table
+      .filter((record: any) => {
+        return Object.entries(filters).every(([key, value]) => {
+          return record[key] === value;
+        });
+      })
+      .toArray();
 
     return records.map((data) => (model as any).fromDB?.(data) ?? (new model(data) as T));
   }
@@ -336,11 +338,13 @@ export class DexieAdapter implements BackendAdapter {
     const table = this.db.table(tableName);
 
     // Find matching records
-    const records = await table.filter((record: any) => {
-      return Object.entries(filters).every(([key, value]) => {
-        return record[key] === value;
-      });
-    }).toArray();
+    const records = await table
+      .filter((record: any) => {
+        return Object.entries(filters).every(([key, value]) => {
+          return record[key] === value;
+        });
+      })
+      .toArray();
 
     // Update each record
     for (const record of records) {
@@ -358,14 +362,16 @@ export class DexieAdapter implements BackendAdapter {
     const table = this.db.table(tableName);
 
     // Find matching records
-    const records = await table.filter((record: any) => {
-      return Object.entries(filters).every(([key, value]) => {
-        return record[key] === value;
-      });
-    }).toArray();
+    const records = await table
+      .filter((record: any) => {
+        return Object.entries(filters).every(([key, value]) => {
+          return record[key] === value;
+        });
+      })
+      .toArray();
 
     // Delete by ID
-    const ids = records.map((r: any) => r.id).filter(id => id !== undefined);
+    const ids = records.map((r: any) => r.id).filter((id) => id !== undefined);
     if (ids.length > 0) {
       await table.bulkDelete(ids);
     }
@@ -417,9 +423,11 @@ export class DexieAdapter implements BackendAdapter {
     const tableName = this.getTableName(model);
     const table = this.db.table(tableName);
 
-    const count = await table.filter((record: any) => {
-      return this.applyFilters(record, plan.filters) && !this.applyFilters(record, plan.excludes);
-    }).count();
+    const count = await table
+      .filter((record: any) => {
+        return this.applyFilters(record, plan.filters) && !this.applyFilters(record, plan.excludes);
+      })
+      .count();
 
     return count;
   }
@@ -528,7 +536,7 @@ export class DexieAdapter implements BackendAdapter {
    */
   async getStats(): Promise<{ tables: string[]; counts: Record<string, number> }> {
     this.ensureConnected();
-    const tables = this.db.tables.map(t => t.name);
+    const tables = this.db.tables.map((t) => t.name);
     const counts: Record<string, number> = {};
 
     for (const tableName of tables) {
