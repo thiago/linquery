@@ -1,6 +1,6 @@
 {
   "name": "linquery",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A Django-inspired ORM for TypeScript with pluggable backends and offline-first support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
