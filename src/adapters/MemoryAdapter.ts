@@ -384,10 +384,9 @@ export class MemoryAdapter implements BackendAdapter {
   /**
    * Count records matching query
    */
-  async count<T>(model: ModelClass<T>, _query: QueryPlan): Promise<number> {
-    // For now, just count all matching records
-    // TODO: Use query filters
-    const results = await this.find(model, {});
+  async count<T>(model: ModelClass<T>, query: QueryPlan): Promise<number> {
+    // Use list() which properly applies filters from the query plan
+    const results = await this.list(model, query);
     return results.length;
   }
 
