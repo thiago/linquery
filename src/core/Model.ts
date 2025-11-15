@@ -115,7 +115,7 @@ export class Model {
         }
 
         // Lazy load: return promise that loads the related instance
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const loadPromise = (field.relatedModel as any).objects.get({ id } as Record<string, unknown>);
 
         // Cache the promise so multiple accesses don't trigger multiple queries
@@ -165,7 +165,7 @@ export class Model {
    */
   private static setupReverseRelation(fieldName: string, field: ForeignKeyField<unknown>): void {
     // Get the related model class
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const relatedModel = field.relatedModel as any;
 
     // Check if this is a OneToOneField
@@ -205,7 +205,7 @@ export class Model {
           }
 
           // Lazy load: return promise that loads the related instance
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           const loadPromise = (sourceModel as any).objects.filter({ [idFieldName]: self.id }).first(); // OneToOne returns single instance
 
           // Cache the promise
@@ -232,7 +232,7 @@ export class Model {
 
           // Return a filtered QuerySet
           // E.g., Book.objects.filter({ author_id: this.id })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           return (sourceModel as any).objects.filter({ [idFieldName]: self.id });
         },
 
@@ -295,7 +295,7 @@ export class Model {
    */
   constructor(data: Partial<ModelInstance> = {}) {
     // Emit pre_init signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     signals.preInit.send(this.constructor, this as any, { data }).catch(() => {
       // Ignore errors in signal handlers during init
     });
@@ -308,7 +308,7 @@ export class Model {
     this._isNew = !data.id;
 
     // Emit post_init signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     signals.postInit.send(this.constructor, this as any, { data }).catch(() => {
       // Ignore errors in signal handlers during init
     });
@@ -348,7 +348,6 @@ export class Model {
    * Validate all fields
    */
   async validate(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const fields = constructor.getFields() as Map<string, Field>;
     const errors: Record<string, string[]> = {};
@@ -376,7 +375,6 @@ export class Model {
    * Save the model instance
    */
   async save(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const adapter = constructor.getAdapter() as BackendAdapter | undefined;
 
@@ -385,7 +383,7 @@ export class Model {
     }
 
     // Emit pre_save signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await signals.preSave.send(constructor, this as any, {
       isNew: this._isNew,
     });
@@ -443,7 +441,7 @@ export class Model {
     this.markAsSaved();
 
     // Emit post_save signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await signals.postSave.send(constructor, this as any, {
       created: wasNew,
     });
@@ -453,7 +451,6 @@ export class Model {
    * Delete the model instance
    */
   async delete(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const adapter = constructor.getAdapter() as BackendAdapter | undefined;
 
@@ -469,13 +466,13 @@ export class Model {
     const pkValue = (this as Record<string, unknown>)[pk];
 
     // Emit pre_delete signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await signals.preDelete.send(constructor, this as any);
 
     await adapter.delete(constructor, { [pk]: pkValue });
 
     // Emit post_delete signal
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await signals.postDelete.send(constructor, this as any);
   }
 
@@ -483,7 +480,6 @@ export class Model {
    * Reload the instance from the database
    */
   async refresh(): Promise<void> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const adapter = constructor.getAdapter() as BackendAdapter | undefined;
 
@@ -514,7 +510,6 @@ export class Model {
    * Convert instance to plain JavaScript object
    */
   toJSON(): Record<string, unknown> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const fields = constructor.getFields() as Map<string, Field>;
     const result: Record<string, unknown> = {};
@@ -530,7 +525,6 @@ export class Model {
    * Convert instance to database format
    */
   toDB(): Record<string, unknown> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const fields = constructor.getFields() as Map<string, Field>;
     const result: Record<string, unknown> = {};
@@ -549,7 +543,6 @@ export class Model {
    * Create an instance from database data
    */
   static fromDB<T extends Model>(data: Record<string, unknown>): T {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields = (this as any).getFields() as Map<string, Field>;
     const converted: Record<string, unknown> = {};
 
@@ -571,7 +564,6 @@ export class Model {
    * String representation
    */
   toString(): string {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const constructor = this.constructor as any;
     const pk = constructor.getPrimaryKey() as string;
     const pkValue = (this as Record<string, unknown>)[pk];

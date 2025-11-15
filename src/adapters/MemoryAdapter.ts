@@ -32,7 +32,6 @@ export class MemoryAdapter implements BackendAdapter {
    * Get the table name for a model
    */
   private getTableName<T>(model: ModelClass<T>): string {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (model as any).getTableName?.() ?? model.name.toLowerCase();
   }
 
@@ -40,7 +39,6 @@ export class MemoryAdapter implements BackendAdapter {
    * Get the primary key field name for a model
    */
   private getPrimaryKey<T>(model: ModelClass<T>): string {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (model as any).getPrimaryKey?.() ?? 'id';
   }
 
@@ -103,7 +101,6 @@ export class MemoryAdapter implements BackendAdapter {
 
     for (const record of table.values()) {
       if (this.matchesFilters(model, record, filters)) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const instance = (model as any).fromDB?.(record) ?? (new model(record) as T);
         results.push(instance);
       }
@@ -245,7 +242,6 @@ export class MemoryAdapter implements BackendAdapter {
     record: Record<string, unknown>,
     filters: Record<string, unknown>
   ): boolean {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields = (model as any).getFields?.() as Map<string, any> | undefined;
 
     for (const [key, value] of Object.entries(filters)) {
@@ -324,7 +320,6 @@ export class MemoryAdapter implements BackendAdapter {
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (model as any).fromDB?.(record) ?? (new model(record) as T);
   }
 
@@ -349,7 +344,6 @@ export class MemoryAdapter implements BackendAdapter {
       }
 
       if (matches) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const instance = (model as any).fromDB?.(record) ?? (new model(record) as T);
         results.push(instance);
       }

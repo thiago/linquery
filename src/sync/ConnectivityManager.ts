@@ -189,20 +189,9 @@ export class ConnectivityManager {
 
     return new Promise<boolean>((resolve, reject) => {
       let timeoutId: ReturnType<typeof setTimeout> | undefined;
-      let unsubscribe: (() => void) | undefined;
-
-      // Set timeout if provided
-      if (timeout) {
-        timeoutId = setTimeout(() => {
-          if (unsubscribe) {
-            unsubscribe();
-          }
-          reject(new Error(`Timeout waiting for online status (${timeout}ms)`));
-        }, timeout);
-      }
 
       // Listen for online event
-      unsubscribe = this.onChange((online) => {
+      const unsubscribe = this.onChange((online) => {
         if (online) {
           if (timeoutId) {
             clearTimeout(timeoutId);
@@ -213,6 +202,16 @@ export class ConnectivityManager {
           resolve(true);
         }
       });
+
+      // Set timeout if provided
+      if (timeout) {
+        timeoutId = setTimeout(() => {
+          if (unsubscribe) {
+            unsubscribe();
+          }
+          reject(new Error(`Timeout waiting for online status (${timeout}ms)`));
+        }, timeout);
+      }
     });
   }
 

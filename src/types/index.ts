@@ -26,26 +26,9 @@ export type StringLookup =
   | 'in'
   | 'isnull';
 
-export type NumberLookup =
-  | 'exact'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'in'
-  | 'range'
-  | 'isnull';
+export type NumberLookup = 'exact' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'range' | 'isnull';
 
-export type DateLookup =
-  | 'exact'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'year'
-  | 'month'
-  | 'day'
-  | 'isnull';
+export type DateLookup = 'exact' | 'gt' | 'gte' | 'lt' | 'lte' | 'year' | 'month' | 'day' | 'isnull';
 
 export type BooleanLookup = 'exact' | 'isnull';
 
@@ -59,54 +42,63 @@ export type Lookup = StringLookup | NumberLookup | DateLookup | BooleanLookup;
  * Maps field types to their available lookups
  * This provides type-safe autocomplete for field__lookup combinations
  */
-export type LookupsForType<T> =
-  T extends string ? StringLookup :
-  T extends number ? NumberLookup :
-  T extends Date ? DateLookup :
-  T extends boolean ? BooleanLookup :
-  'exact' | 'isnull';  // Fallback for unknown types
+export type LookupsForType<T> = T extends string
+  ? StringLookup
+  : T extends number
+    ? NumberLookup
+    : T extends Date
+      ? DateLookup
+      : T extends boolean
+        ? BooleanLookup
+        : 'exact' | 'isnull'; // Fallback for unknown types
 
 /**
  * Generates all possible lookup keys for a field
  * Example: 'age' → 'age' | 'age__gt' | 'age__gte' | 'age__lt' | ...
  */
-export type FieldLookupKeys<
-  TField extends string,
-  TValue
-> = TField | `${TField}__${LookupsForType<TValue>}`;
+export type FieldLookupKeys<TField extends string, TValue> = TField | `${TField}__${LookupsForType<TValue>}`;
 
 /**
  * Extracts the base type from a field, unwrapping optional and undefined
  * Example: string | undefined → string
  */
-export type UnwrapFieldType<T> =
-  T extends undefined | null ? never :
-  T extends Date | undefined ? Date :
-  T extends string | undefined ? string :
-  T extends number | undefined ? number :
-  T extends boolean | undefined ? boolean :
-  T;
+export type UnwrapFieldType<T> = T extends undefined | null
+  ? never
+  : T extends Date | undefined
+    ? Date
+    : T extends string | undefined
+      ? string
+      : T extends number | undefined
+        ? number
+        : T extends boolean | undefined
+          ? boolean
+          : T;
 
 /**
  * Gets the expected value type for a lookup operation
  * Example: For 'in' lookup on number field → number[]
  */
-export type LookupValueType<TField, TLookup extends string> =
-  TLookup extends 'in' ? TField[] :
-  TLookup extends 'range' ? [TField, TField] :
-  TLookup extends 'isnull' ? boolean :
-  TField;
+export type LookupValueType<TField, TLookup extends string> = TLookup extends 'in'
+  ? TField[]
+  : TLookup extends 'range'
+    ? [TField, TField]
+    : TLookup extends 'isnull'
+      ? boolean
+      : TField;
 
 /**
  * Maps a field type to its lookup value type
  * Handles the special cases for 'in', 'range', 'isnull', and date components
  */
-type LookupValue<TFieldType, TLookup extends string> =
-  TLookup extends 'in' ? TFieldType[] :
-  TLookup extends 'range' ? [TFieldType, TFieldType] :
-  TLookup extends 'isnull' ? boolean :
-  TLookup extends 'year' | 'month' | 'day' ? number :
-  TFieldType;
+type LookupValue<TFieldType, TLookup extends string> = TLookup extends 'in'
+  ? TFieldType[]
+  : TLookup extends 'range'
+    ? [TFieldType, TFieldType]
+    : TLookup extends 'isnull'
+      ? boolean
+      : TLookup extends 'year' | 'month' | 'day'
+        ? number
+        : TFieldType;
 
 /**
  * Generate all valid lookup combinations for a single field
@@ -123,8 +115,7 @@ type FieldWithLookups<K extends string, TFieldType> = {
  * Union to Intersection helper
  * Converts a union of types into an intersection
  */
-type UnionToIntersection<U> =
-  (U extends any ? (k: U) => void : never) extends ((k: infer I) => void) ? I : never;
+type UnionToIntersection<U> = (U extends any ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
 
 /**
  * Advanced type-safe filter for model queries
@@ -160,9 +151,13 @@ type NonFunctionKeys<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
 }[keyof T];
 
-export type TypedFilter<T> = Partial<UnionToIntersection<{
-  [K in NonFunctionKeys<T>]: FieldWithLookups<K & string, UnwrapFieldType<T[K]>>;
-}[NonFunctionKeys<T>]>>;
+export type TypedFilter<T> = Partial<
+  UnionToIntersection<
+    {
+      [K in NonFunctionKeys<T>]: FieldWithLookups<K & string, UnwrapFieldType<T[K]>>;
+    }[NonFunctionKeys<T>]
+  >
+>;
 
 // Query filter types
 export type QueryFilters = Record<string, unknown>;

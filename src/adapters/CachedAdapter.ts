@@ -1,9 +1,4 @@
-import {
-  BackendAdapter,
-  ModelClass,
-  QueryPlan,
-  CompiledFilter,
-} from '../types';
+import { BackendAdapter, ModelClass, QueryPlan, CompiledFilter } from '../types';
 import { Signal } from '../core/Signal';
 import { Model } from '../core/Model';
 import { CharField, IntegerField } from '../core/Field';
@@ -170,8 +165,7 @@ export class CachedAdapter implements BackendAdapter {
     this.enableOfflineQueue = options.enableOfflineQueue ?? true;
     this.maxRetries = options.maxRetries ?? 3;
     this.isOnlineFn = options.isOnline ?? (() => true);
-    this.retryDelayFn =
-      options.retryDelayMs ?? ((attempt) => Math.min(1000 * 2 ** attempt, 30000));
+    this.retryDelayFn = options.retryDelayMs ?? ((attempt) => Math.min(1000 * 2 ** attempt, 30000));
 
     // Initialize the internal queue model if queue is enabled
     if (this.enableOfflineQueue) {
@@ -246,7 +240,7 @@ export class CachedAdapter implements BackendAdapter {
         {
           tableName: '__sync_queue__',
           adapter: this.cache,
-        },
+        }
       );
     }
   }
@@ -269,18 +263,11 @@ export class CachedAdapter implements BackendAdapter {
   /**
    * Check if two objects have differences (for cache invalidation)
    */
-  private hasChanged(
-    cached: Record<string, unknown> | null,
-    fresh: Record<string, unknown>,
-  ): boolean {
+  private hasChanged(cached: Record<string, unknown> | null, fresh: Record<string, unknown>): boolean {
     if (!cached) return true;
 
     // Compare updated_at if available
-    if (
-      'updated_at' in cached &&
-      'updated_at' in fresh &&
-      cached.updated_at !== fresh.updated_at
-    ) {
+    if ('updated_at' in cached && 'updated_at' in fresh && cached.updated_at !== fresh.updated_at) {
       return true;
     }
 
@@ -296,7 +283,7 @@ export class CachedAdapter implements BackendAdapter {
     model: ModelClass,
     data?: Record<string, unknown>,
     localId?: unknown,
-    remoteId?: unknown,
+    remoteId?: unknown
   ): Promise<void> {
     if (!this.enableOfflineQueue) return;
 
@@ -312,12 +299,9 @@ export class CachedAdapter implements BackendAdapter {
     };
 
     // Persist queue to cache
-    await this.cache.create(
-      QueueModel as unknown as ModelClass,
-      queuedOp as unknown as Record<string, unknown>,
-    );
+    await this.cache.create(QueueModel as unknown as ModelClass, queuedOp as unknown as Record<string, unknown>);
 
-    this.signals.operationQueued.send(this,queuedOp);
+    this.signals.operationQueued.send(this, queuedOp);
   }
 
   /**
@@ -341,10 +325,7 @@ export class CachedAdapter implements BackendAdapter {
         prefetchRelated: [],
       };
 
-      const queuedOps = await this.cache.list(
-        QueueModel as unknown as ModelClass,
-        plan,
-      );
+      const queuedOps = await this.cache.list(QueueModel as unknown as ModelClass, plan);
 
       for (const op of queuedOps as unknown as CachedQueuedOperation[]) {
         await this.processCachedQueuedOperation(op);
@@ -387,10 +368,10 @@ export class CachedAdapter implements BackendAdapter {
       // Remove from queue on success
       await this.cache.delete(QueueModel as unknown as ModelClass, { id: op.id });
       await this.signals.operationSynced.send(this, { operation: op, success: true });
-    } catch (error) {
+    } catch (_error) {
       // Increment retry count
       op.retries += 1;
-      op.error = error instanceof Error ? error.message : String(error);
+      op.error = _error instanceof Error ? _error.message : String(_error);
 
       if (op.retries >= this.maxRetries) {
         // Max retries reached, remove from queue
@@ -398,14 +379,14 @@ export class CachedAdapter implements BackendAdapter {
         await this.signals.syncFailed.send(this, {
           operation: op,
           success: false,
-          error: error instanceof Error ? error : new Error(String(error)),
+          error: _error instanceof Error ? _error : new Error(String(_error)),
         });
       } else {
         // Update retry count in queue
         await this.cache.update(
           QueueModel as unknown as ModelClass,
           { id: op.id },
-          op as unknown as Record<string, unknown>,
+          op as unknown as Record<string, unknown>
         );
 
         // Schedule retry
@@ -448,7 +429,7 @@ export class CachedAdapter implements BackendAdapter {
       case 'cache-first': {
         const cached = await this.cache.get(model, id);
         if (cached) {
-          this.signals.cacheHit.send(this,{
+          this.signals.cacheHit.send(this, {
             source: 'cache',
             model: modelName,
             data: cached,
@@ -478,7 +459,7 @@ export class CachedAdapter implements BackendAdapter {
               });
             }
             return fresh;
-          } catch (error) {
+          } catch (_error) {
             // Fallback to cache
             return await this.cache.get(model, id);
           }
@@ -490,7 +471,7 @@ export class CachedAdapter implements BackendAdapter {
         // Return cache immediately
         const cached = await this.cache.get(model, id);
         if (cached) {
-          this.signals.cacheHit.send(this,{
+          this.signals.cacheHit.send(this, {
             source: 'cache',
             model: modelName,
             data: cached,
@@ -517,21 +498,13 @@ export class CachedAdapter implements BackendAdapter {
   /**
    * Fetch from network and update cache in background
    */
-  private async fetchAndUpdateCache<T>(
-    model: ModelClass<T>,
-    id: unknown,
-  ): Promise<void> {
+  private async fetchAndUpdateCache<T>(model: ModelClass<T>, id: unknown): Promise<void> {
     try {
       const fresh = await this.remote.get(model, id);
       if (!fresh) return;
 
       const cached = await this.cache.get(model, id);
-      if (
-        this.hasChanged(
-          cached as Record<string, unknown> | null,
-          fresh as Record<string, unknown>,
-        )
-      ) {
+      if (this.hasChanged(cached as Record<string, unknown> | null, fresh as Record<string, unknown>)) {
         await this.cache.update(model, { id }, fresh as Record<string, unknown>);
         await this.signals.cacheUpdated.send(this, {
           source: 'remote',
@@ -540,7 +513,7 @@ export class CachedAdapter implements BackendAdapter {
           operation: 'read',
         });
       }
-    } catch (error) {
+    } catch (_error) {
       // Silently fail background updates
     }
   }
@@ -556,7 +529,7 @@ export class CachedAdapter implements BackendAdapter {
     switch (this.readStrategy) {
       case 'cache-first': {
         const cached = await this.cache.list(model, plan);
-        this.signals.cacheHit.send(this,{
+        this.signals.cacheHit.send(this, {
           source: 'cache',
           model: modelName,
           data: cached,
@@ -571,14 +544,14 @@ export class CachedAdapter implements BackendAdapter {
             const fresh = await this.remote.list(model, plan);
             // Update cache with fresh data
             await this.updateCacheFromList(model, fresh);
-            this.signals.networkFetch.send(this,{
+            this.signals.networkFetch.send(this, {
               source: 'remote',
               model: modelName,
               data: fresh,
               operation: 'read',
             });
             return fresh;
-          } catch (error) {
+          } catch (_error) {
             // Fallback to cache
             return await this.cache.list(model, plan);
           }
@@ -589,7 +562,7 @@ export class CachedAdapter implements BackendAdapter {
       case 'cache-then-network': {
         // Return cache immediately
         const cached = await this.cache.list(model, plan);
-        this.signals.cacheHit.send(this,{
+        this.signals.cacheHit.send(this, {
           source: 'cache',
           model: modelName,
           data: cached,
@@ -615,20 +588,17 @@ export class CachedAdapter implements BackendAdapter {
   /**
    * Fetch list from network and update cache in background
    */
-  private async fetchListAndUpdateCache<T>(
-    model: ModelClass<T>,
-    plan: QueryPlan,
-  ): Promise<void> {
+  private async fetchListAndUpdateCache<T>(model: ModelClass<T>, plan: QueryPlan): Promise<void> {
     try {
       const fresh = await this.remote.list(model, plan);
       await this.updateCacheFromList(model, fresh);
-      this.signals.cacheUpdated.send(this,{
+      this.signals.cacheUpdated.send(this, {
         source: 'remote',
         model: this.getModelName(model),
         data: fresh,
         operation: 'read',
       });
-    } catch (error) {
+    } catch (_error) {
       // Silently fail background updates
     }
   }
@@ -636,10 +606,7 @@ export class CachedAdapter implements BackendAdapter {
   /**
    * Update cache with list of items (merge strategy)
    */
-  private async updateCacheFromList<T>(
-    model: ModelClass<T>,
-    items: T[],
-  ): Promise<void> {
+  private async updateCacheFromList<T>(model: ModelClass<T>, items: T[]): Promise<void> {
     for (const item of items) {
       const record = item as Record<string, unknown>;
       if ('id' in record) {
@@ -669,33 +636,23 @@ export class CachedAdapter implements BackendAdapter {
           const result = await this.remote.create(model, data);
           // Update cache with created record
           await this.cache.create(model, result as Record<string, unknown>);
-          this.signals.networkFetch.send(this,{
+          this.signals.networkFetch.send(this, {
             source: 'remote',
             model: modelName,
             data: result,
             operation: 'write',
           });
           return result;
-        } catch (error) {
+        } catch (_error) {
           // Queue for later if offline
           const localResult = await this.cache.create(model, data);
-          await this.queueOperation(
-            'create',
-            model,
-            data,
-            (localResult as Record<string, unknown>).id,
-          );
+          await this.queueOperation('create', model, data, (localResult as Record<string, unknown>).id);
           return localResult;
         }
       } else {
         // Offline - write to cache and queue
         const localResult = await this.cache.create(model, data);
-        await this.queueOperation(
-          'create',
-          model,
-          data,
-          (localResult as Record<string, unknown>).id,
-        );
+        await this.queueOperation('create', model, data, (localResult as Record<string, unknown>).id);
         return localResult;
       }
     } else {
@@ -715,12 +672,7 @@ export class CachedAdapter implements BackendAdapter {
           })
           .catch(() => {
             // Queue if network fails
-            this.queueOperation(
-              'create',
-              model,
-              data,
-              (localResult as Record<string, unknown>).id,
-            );
+            this.queueOperation('create', model, data, (localResult as Record<string, unknown>).id);
           });
       }
       return localResult;
@@ -733,7 +685,7 @@ export class CachedAdapter implements BackendAdapter {
   async update<T>(
     model: ModelClass<T>,
     filters: Record<string, unknown>,
-    data: Record<string, unknown>,
+    data: Record<string, unknown>
   ): Promise<void> {
     // Auto-register model for queue processing
     this.registerModel(model);
@@ -751,7 +703,7 @@ export class CachedAdapter implements BackendAdapter {
             data,
             operation: 'write',
           });
-        } catch (error) {
+        } catch (_error) {
           // Queue for later if fails
           await this.cache.update(model, filters, data);
           await this.queueOperation('update', model, data, undefined, filters);
@@ -793,7 +745,7 @@ export class CachedAdapter implements BackendAdapter {
             data: filters,
             operation: 'delete',
           });
-        } catch (error) {
+        } catch (_error) {
           // Queue for later if fails
           await this.cache.delete(model, filters);
           await this.queueOperation('delete', model, undefined, undefined, filters);
@@ -823,7 +775,7 @@ export class CachedAdapter implements BackendAdapter {
     if (this.readStrategy === 'network-first' && (await this.isOnline())) {
       try {
         return await this.remote.count(model, plan);
-      } catch (error) {
+      } catch (_error) {
         return await this.cache.count(model, plan);
       }
     }
@@ -833,15 +785,11 @@ export class CachedAdapter implements BackendAdapter {
   /**
    * Execute a raw query (delegates to remote if online, cache otherwise)
    */
-  async executeRaw<T>(
-    model: ModelClass<T>,
-    query: string | object,
-    params?: unknown[],
-  ): Promise<T[]> {
+  async executeRaw<T>(model: ModelClass<T>, query: string | object, params?: unknown[]): Promise<T[]> {
     if (await this.isOnline()) {
       try {
         return this.remote.executeRaw ? await this.remote.executeRaw(model, query, params) : [];
-      } catch (error) {
+      } catch (_error) {
         return this.cache.executeRaw ? await this.cache.executeRaw(model, query, params) : [];
       }
     }

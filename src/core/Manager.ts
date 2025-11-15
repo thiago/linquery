@@ -22,7 +22,6 @@ export class Manager<T = unknown> {
    * Get the adapter, either from manager or model
    */
   private getAdapter(): BackendAdapter {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adapter = this.adapter ?? (this.model as any).getAdapter?.();
     if (!adapter) {
       throw new Error(`No adapter configured for model ${this.model.name}`);
@@ -75,7 +74,7 @@ export class Manager<T = unknown> {
     try {
       const instance = await this.get(filters);
       return { instance, created: false };
-    } catch (error) {
+    } catch (_error) {
       // DoesNotExist - create new instance
       const instance = await this.create({ ...(filters as Filter), ...defaults });
       return { instance, created: true };
@@ -95,7 +94,7 @@ export class Manager<T = unknown> {
       Object.assign(instance as object, defaults);
       await (instance as unknown as { save(): Promise<void> }).save();
       return { instance, created: false };
-    } catch (error) {
+    } catch (_error) {
       // DoesNotExist - create new instance
       const instance = await this.create({ ...(filters as Filter), ...defaults });
       return { instance, created: true };

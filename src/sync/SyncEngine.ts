@@ -380,7 +380,7 @@ export class SyncEngine {
    */
   private async _processCreate(op: QueuedOperation, ModelCls: ModelClass): Promise<void> {
     // Remove local ID from data before sending to remote
-    const { id, ...dataWithoutId } = op.data;
+    const { id: _id, ...dataWithoutId } = op.data;
 
     try {
       // Create in remote adapter
@@ -429,7 +429,7 @@ export class SyncEngine {
 
     try {
       // Remove local ID from data before sending to remote
-      const { id, ...dataWithoutId } = op.data;
+      const { id: _id, ...dataWithoutId } = op.data;
 
       // Update in remote adapter with remote ID
       await this._remote.update(ModelCls, { id: remoteId }, dataWithoutId);

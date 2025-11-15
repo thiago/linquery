@@ -312,7 +312,6 @@ export class QuerySet<T = unknown> {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modelClass = this.model as any;
     const fields = modelClass.getFields() as Map<string, unknown>;
 
@@ -329,7 +328,7 @@ export class QuerySet<T = unknown> {
       }
 
       // Extract the related model from the field
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const relatedModel = (field as any).relatedModel;
       if (!relatedModel) {
         continue; // Not a ForeignKey field
@@ -349,7 +348,7 @@ export class QuerySet<T = unknown> {
       }
 
       // Batch load all related instances using __in lookup
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const relatedInstances = await (relatedModel as any).objects.filter({ id__in: Array.from(foreignKeyIds) }).all();
 
       // Create a map of ID -> instance for quick lookup
@@ -401,9 +400,8 @@ export class QuerySet<T = unknown> {
           const bVal = (b as Record<string, unknown>)[order.field];
 
           let comparison = 0;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           if ((aVal as any) < (bVal as any)) comparison = -1;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           else if ((aVal as any) > (bVal as any)) comparison = 1;
 
           if (comparison !== 0) {
@@ -440,7 +438,6 @@ export class QuerySet<T = unknown> {
       return;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const modelClass = this.model as any;
 
     for (const relationPath of this.prefetchRelatedFields) {
@@ -479,7 +476,7 @@ export class QuerySet<T = unknown> {
 
           // The QuerySet should have a filter already applied
           // We'll load all related objects in one query
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
           const relatedQuerySet = relationAccessor as any;
 
           // Build filter for all IDs (e.g., author_id__in: [1, 2, 3])
@@ -513,7 +510,7 @@ export class QuerySet<T = unknown> {
             }
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // If we can't prefetch, just skip
         continue;
       }
