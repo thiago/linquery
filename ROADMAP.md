@@ -336,11 +336,11 @@ We implemented **two complementary adapters** for different offline-first scenar
 
 **Goal:** Polish for production use.
 
-**Status:** ⏳ Partially started (5 adapters complete)
+**Status:** ⏳ Partially started (6 adapters complete)
 
 ### Tasks
 
-- [x] **Additional adapters** (5/7 complete)
+- [x] **Additional adapters** (6/7 complete)
   - [x] **LocalStorageAdapter** ✨ **COMPLETE!**
     - [x] Browser localStorage support
     - [x] Automatic JSON serialization
@@ -385,7 +385,7 @@ We implemented **two complementary adapters** for different offline-first scenar
   - [ ] RESTAdapter
   - [ ] PostgresAdapter (via @orm-js/adapter-postgres)
   - [ ] MySQLAdapter
-  - [ ] SQLiteAdapter
+  - [x] SQLiteAdapter (universal: Node.js/Browser/React Native)
 
 - [ ] Performance
   - [ ] Query optimization

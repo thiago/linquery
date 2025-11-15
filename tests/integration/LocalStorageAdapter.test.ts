@@ -399,7 +399,7 @@ describe('LocalStorageAdapter', () => {
       await adapter.create(Post, { title: 'Post 2', content: 'Content 2' });
 
       const stats = adapter.getStats();
-      expect(stats.tables).toContain('post');
+      expect(stats.tables).toContain('posts');
       expect(stats.totalKeys).toBeGreaterThan(0);
       expect(stats.estimatedSize).toBeGreaterThan(0);
     });
@@ -460,8 +460,8 @@ describe('LocalStorageAdapter', () => {
       await adapter.create(User, { name: 'John', email: 'john@example.com' });
 
       const stats = adapter.getStats();
-      expect(stats.tables).toContain('post');
-      expect(stats.tables).toContain('user');
+      expect(stats.tables).toContain('posts');
+      expect(stats.tables).toContain('users');
       expect(stats.tables.length).toBe(2);
     });
   });

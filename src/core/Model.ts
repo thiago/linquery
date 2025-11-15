@@ -55,8 +55,11 @@ export class Model {
    * Initialize a model class with its field definitions
    */
   static init<T extends Model>(fields: FieldDefinition<T>, options: ModelOptions = {}): void {
+    // Check if static tableName is defined on the class
+    const staticTableName = (this as any).tableName;
+
     const meta: ModelMetadata = {
-      tableName: options.tableName ?? this.name.toLowerCase(),
+      tableName: options.tableName ?? staticTableName ?? this.name.toLowerCase(),
       fields: new Map(),
       primaryKey: options.primaryKey ?? 'id',
       adapter: options.adapter,
