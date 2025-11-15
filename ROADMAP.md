@@ -340,7 +340,7 @@ We implemented **two complementary adapters** for different offline-first scenar
 
 ### Tasks
 
-- [x] **Additional adapters** (4/7 complete)
+- [x] **Additional adapters** (5/7 complete)
   - [x] **LocalStorageAdapter** ✨ **COMPLETE!**
     - [x] Browser localStorage support
     - [x] Automatic JSON serialization
@@ -350,7 +350,16 @@ We implemented **two complementary adapters** for different offline-first scenar
     - [x] Query filtering with 18 lookup types
     - [x] Ordering and pagination
     - [x] Storage stats and utilities
-  - [ ] DexieAdapter (IndexedDB)
+  - [x] **DexieAdapter** ✨ **COMPLETE!**
+    - [x] IndexedDB storage via Dexie.js
+    - [x] Peer dependency pattern (user installs Dexie)
+    - [x] Receives Dexie instance in constructor
+    - [x] Full CRUD operations
+    - [x] Query filtering with 18 lookup types
+    - [x] Ordering and pagination
+    - [x] Async/Promise-based API
+    - [x] Storage stats utilities
+    - [x] Note: Tests require real browser environment
   - [x] **GraphQLAdapter** ✨ **COMPLETE!**
     - [x] CRUD operations (create, find, update, delete)
     - [x] Count and exists support
