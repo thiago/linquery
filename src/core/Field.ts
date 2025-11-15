@@ -16,6 +16,7 @@ export abstract class Field<T = unknown> {
   validators: ValidatorFn<T>[];
   dbColumn?: string;
   helpText?: string;
+  index?: boolean;
 
   // Type marker for TypeScript inference (not used at runtime)
   readonly __type!: T;
@@ -27,6 +28,7 @@ export abstract class Field<T = unknown> {
     this.validators = options.validators ?? [];
     this.dbColumn = options.dbColumn;
     this.helpText = options.helpText;
+    this.index = options.index;
   }
 
   /**

@@ -60,6 +60,19 @@ export interface DexieAdapterOptions {
    * @default false
    */
   clearOnConnect?: boolean;
+
+  /**
+   * Automatically generate Dexie schema from Models
+   * When true, adapter will auto-generate schema on connect()
+   * @default true
+   */
+  autoSchema?: boolean;
+
+  /**
+   * Database version for auto-generated schema
+   * @default 1
+   */
+  version?: number;
 }
 
 /**
@@ -124,7 +137,10 @@ export interface DexieCollection<T = any> {
 export class DexieAdapter implements BackendAdapter {
   private db: DexieDatabase;
   private clearOnConnect: boolean;
+  private autoSchema: boolean;
+  private version: number;
   private isConnected = false;
+  private registeredModels: Map<string, ModelClass<any>> = new Map();
 
   /**
    * Create a new DexieAdapter
@@ -148,12 +164,74 @@ export class DexieAdapter implements BackendAdapter {
   constructor(db: DexieDatabase, options: DexieAdapterOptions = {}) {
     this.db = db;
     this.clearOnConnect = options.clearOnConnect || false;
+    this.autoSchema = options.autoSchema ?? true;
+    this.version = options.version || 1;
+  }
+
+  /**
+   * Register a model for auto-schema generation
+   * Called automatically when Model.setAdapter() is used
+   */
+  registerModel<T>(model: ModelClass<T>): void {
+    const tableName = this.getTableName(model);
+    this.registeredModels.set(tableName, model);
+  }
+
+  /**
+   * Extract Dexie schema string from a Model's fields
+   * Returns something like: '++id, title, published, views'
+   */
+  private extractSchemaFromModel<T>(model: ModelClass<T>): string {
+    const fields = (model as any).getFields?.() as Map<string, any> | undefined;
+
+    if (!fields) {
+      // Fallback: just auto-increment id
+      return '++id';
+    }
+
+    const indexedFields: string[] = [];
+
+    // Always start with auto-increment primary key
+    const schemaFields = ['++id'];
+
+    // Add indexed fields
+    for (const [fieldName, field] of fields.entries()) {
+      if (field.index === true || field.unique === true) {
+        indexedFields.push(fieldName);
+      }
+    }
+
+    // Combine: '++id, field1, field2, ...'
+    if (indexedFields.length > 0) {
+      schemaFields.push(...indexedFields);
+    }
+
+    return schemaFields.join(', ');
+  }
+
+  /**
+   * Generate full Dexie schema object from registered models
+   */
+  private generateSchema(): Record<string, string> {
+    const schema: Record<string, string> = {};
+
+    for (const [tableName, model] of this.registeredModels.entries()) {
+      schema[tableName] = this.extractSchemaFromModel(model);
+    }
+
+    return schema;
   }
 
   /**
    * Connect to the database
    */
   async connect(): Promise<void> {
+    // Auto-generate and apply schema if enabled
+    if (this.autoSchema && this.registeredModels.size > 0) {
+      const schema = this.generateSchema();
+      this.db.version(this.version).stores(schema);
+    }
+
     if (!this.db.isOpen()) {
       await this.db.open();
     }

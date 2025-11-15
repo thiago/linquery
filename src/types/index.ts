@@ -176,6 +176,7 @@ export interface FieldOptions<T = unknown> {
   validators?: ValidatorFn<T>[];
   dbColumn?: string;
   helpText?: string;
+  index?: boolean; // Mark field for database indexing (used by adapters like DexieAdapter)
 }
 
 // Validation error structure

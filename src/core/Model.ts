@@ -288,6 +288,11 @@ export class Model {
   static setAdapter(this: ModelClass, adapter: BackendAdapter): void {
     const meta = (this as unknown as typeof Model).getMeta();
     meta.adapter = adapter;
+
+    // If adapter supports model registration (like DexieAdapter), register this model
+    if (typeof (adapter as any).registerModel === 'function') {
+      (adapter as any).registerModel(this);
+    }
   }
 
   /**
