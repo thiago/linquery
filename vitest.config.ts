@@ -13,6 +13,7 @@ export default defineConfig({
       '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build}.config.*',
       '**/tests/integration/DexieAdapter.test.ts', // Requires real browser IndexedDB
       '**/tests/contracts/DexieAdapter.contract.test.ts', // Requires real browser IndexedDB
+      '**/tests/e2e/expo-app/**', // Expo app (manual testing only)
     ],
     coverage: {
       provider: 'v8',
